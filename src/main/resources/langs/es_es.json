@@ -100,7 +100,7 @@
   "gameplay.scoreboard.lobby.name": "&e&lEggWars",
   "gameplay.scoreboard.lobby.data": "&5Mapa:\n&a{3}\n&f \n&5Jugadores:\n&a{0}&a/&a{2}\n&f\n&6www.tupaginaweb.com",
   "gameplay.scoreboard.ingame.name": "&e&lEggWars",
-  "gameplay.scoreboard.ingame.data": "&f\n&6www.yourwebsite.com",
+  "gameplay.scoreboard.ingame.data": "&f\n&6stark-mc.net",
   "gameplay.villager.name": "&e&lTienda de EggWars",
   "gameplay.villager.below": "&7(Clic para abrir)",
   "gameplay.villager.different_team": "&cNo se puede abrir esta tienda! El aldeano es de otro equipo.",
