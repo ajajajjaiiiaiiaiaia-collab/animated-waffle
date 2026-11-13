@@ -5,6 +5,9 @@ on:
     branches: [eggwars]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,3 +24,12 @@ jobs:
         with:
           name: EggWars-1.21.11
           path: target/EggWars-*.jar
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete eggwars-latest --cleanup-tag --yes || true
+          gh release create eggwars-latest target/EggWars-*.jar \
+            --title "EggWars 6.3.0 (1.21.11) latest build" \
+            --notes "Automatic build from commit ${GITHUB_SHA::7}" \
+            --target "$GITHUB_SHA"
