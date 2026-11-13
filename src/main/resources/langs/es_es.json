@@ -98,7 +98,7 @@
   "gameplay.misc.add_points": "&6+{0} puntos!",
   "gameplay.misc.points_multiplied": "&6 (x{0}&6 del multiplicador)",
   "gameplay.scoreboard.lobby.name": "&e&lEggWars",
-  "gameplay.scoreboard.lobby.data": "&5Mapa:\n&a{3}\n&f \n&5Jugadores:\n&a{0}&a/&a{2}\n&f\n&6www.tupaginaweb.com",
+  "gameplay.scoreboard.lobby.data": "&5Mapa:\n&a{3}\n&f \n&5Jugadores:\n&a{0}&a/&a{2}\n&f\n&6stark-mc.net",
   "gameplay.scoreboard.ingame.name": "&e&lEggWars",
   "gameplay.scoreboard.ingame.data": "&f\n&6stark-mc.net",
   "gameplay.villager.name": "&e&lTienda de EggWars",
