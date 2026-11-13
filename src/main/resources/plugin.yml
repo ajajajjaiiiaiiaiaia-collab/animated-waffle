@@ -1,0 +1,22 @@
+name: AntiTrigger
+version: "1.0.0"
+main: me.starkmc.antitrigger.AntiTriggerPlugin
+api-version: "1.21"
+description: Conservative triggerbot detection with staff alerts and no automatic punishment by default.
+commands:
+  antitrigger:
+    description: AntiTrigger staff command
+    usage: /antitrigger <alerts|info|reset|reload>
+    aliases: [atb]
+permissions:
+  antitrigger.admin:
+    description: Use all AntiTrigger commands
+    default: op
+    children:
+      antitrigger.alerts: true
+  antitrigger.alerts:
+    description: Receive flag alerts
+    default: op
+  antitrigger.bypass:
+    description: Never checked
+    default: false

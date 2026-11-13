@@ -1,0 +1,36 @@
+# AntiTrigger - conservative triggerbot detection.
+#
+# A triggerbot attacks the instant the crosshair touches an enemy, and (unlike a
+# human) almost never swings at nothing. We only flag when BOTH signals show up
+# together, over a whole window of fights. By default nobody is punished
+# automatically: staff get an alert and a log line to review.
+
+detection:
+  range: 4.0              # blocks; how far the look-ray is traced
+  ray-size: 0.1           # hitbox expansion for the look-ray
+  window-size: 12         # how many recent hits are kept per player
+  min-samples: 10         # hits needed before a window is judged
+  window-seconds: 40      # hits older than this are dropped
+  instant-ticks: 2        # "instant" = attack within this many ticks of crosshair touching the enemy (1 tick = 50ms)
+  min-instant-ratio: 0.8  # share of hits in the window that must be instant
+  max-air-swings: 1       # swings at nothing allowed inside the window (humans swing a lot)
+
+safety:
+  max-ping: 150           # players above this are never judged
+  min-tps: 18.0           # nobody is judged while the server lags
+  bedrock-prefix: "."     # Floodgate/Geyser names start with this; touch input is exempt ("" to disable)
+  bypass-permission: antitrigger.bypass
+
+violations:
+  alert-vl: 2.0           # staff alert once a player has this many flagged windows
+  decay-per-minute: 0.5   # violation level falls over time so one-offs fade away
+
+punish:
+  enabled: false          # keep false and review alerts/logs yourself
+  vl: 6.0
+  commands:
+    - "kick %player% Suspicious combat behaviour (AntiTrigger)"
+
+messages:
+  prefix: "&c[AntiTrigger] "
+  alert: "&f%player% &7flagged &8| &7instant &f%ratio%% &8| &7air swings &f%air% &8| &7hits &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"
