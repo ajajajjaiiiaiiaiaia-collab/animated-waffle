@@ -1,0 +1,23 @@
+name: Build EggWars
+
+on:
+  push:
+    branches: [eggwars]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build jar
+        run: mvn -B -q package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EggWars-1.21.11
+          path: target/EggWars-*.jar

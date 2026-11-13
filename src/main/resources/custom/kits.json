@@ -1,0 +1,242 @@
+{
+  "format_versions": ["10", "11", "12", "13", "14", "15", "16", "17"],
+  "kits": {
+    "egg_shell": {
+      "price": 200,
+      "display_item": {
+        "id": "minecraft:end_stone",
+        "count": 1
+      },
+      "items": [
+        {
+          "item": {
+            "id": "minecraft:end_stone",
+            "count": 8
+          }
+        }
+      ]
+    },
+    "rabbit": {
+      "price": 250,
+      "display_item": {
+        "id": "minecraft:golden_carrot",
+        "count": 1
+      },
+      "items": [
+        {
+          "item": {
+            "id": "minecraft:golden_carrot",
+            "count": 3
+          }
+        },
+        {
+          "item": {
+            "id": "minecraft:potion",
+            "count": 1,
+            "components": {
+              "minecraft:potion_contents": {
+                "potion": "minecraft:strong_leaping"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "money_bags": {
+      "price": 300,
+      "display_item": {
+        "id": "minecraft:iron_ingot",
+        "count": 1
+      },
+      "items": [
+        {
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 15
+          }
+        }
+      ]
+    },
+    "buffer": {
+      "price": 450,
+      "display_item": {
+        "id": "minecraft:splash_potion",
+        "count": 1,
+        "components": {
+          "minecraft:potion_contents": {
+            "potion": "minecraft:healing"
+          }
+        }
+      },
+      "items": [
+        {
+          "item": {
+            "id": "minecraft:splash_potion",
+            "count": 1,
+            "components": {
+              "minecraft:potion_contents": {
+                "potion": "minecraft:healing"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "debuffer": {
+      "price": 450,
+      "display_item": {
+        "id": "minecraft:splash_potion",
+        "count": 1,
+        "components": {
+          "minecraft:potion_contents": {
+            "potion": "minecraft:weakness"
+          }
+        }
+      },
+      "items": [
+        {
+          "item": {
+            "id": "minecraft:splash_potion",
+            "count": 1,
+            "components": {
+              "minecraft:potion_contents": {
+                "potion": "minecraft:weakness"
+              }
+            }
+          }
+        },
+        {
+          "item": {
+            "id": "minecraft:splash_potion",
+            "count": 1,
+            "components": {
+              "minecraft:potion_contents": {
+                "potion": "minecraft:slowness"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "healer": {
+      "price": 450,
+      "display_item": {
+        "id": "minecraft:golden_apple",
+        "count": 1
+      },
+      "items": [
+        {
+          "item": {
+            "id": "minecraft:golden_apple",
+            "count": 2
+          }
+        }
+      ]
+    },
+    "shell_cracker": {
+      "price": 350,
+      "display_item": {
+        "id": "minecraft:golden_pickaxe",
+        "count": 1
+      },
+      "items": [
+        {
+          "item": {
+            "id": "minecraft:golden_pickaxe",
+            "count": 1,
+            "components": {
+              "minecraft:enchantments": {
+                "minecraft:efficiency": 2
+              }
+            }
+          }
+        },
+        {
+          "item": {
+            "id": "minecraft:tnt",
+            "count": 1
+          }
+        }
+      ]
+    },
+    "egg_armour": {
+      "price": 350,
+      "display_item": {
+        "id": "minecraft:egg",
+        "count": 1
+      },
+      "items": [
+        {
+          "custom_slot": "head",
+          "item": {
+            "id": "minecraft:leather_helmet",
+            "count": 1,
+            "components": {
+              "minecraft:dyed_color": {
+                "rgb": 16383998
+              }
+            }
+          }
+        },
+        {
+          "custom_slot": "chest",
+          "item": {
+            "id": "minecraft:leather_chestplate",
+            "count": 1,
+            "components": {
+              "minecraft:dyed_color": {
+                "rgb": 16701501
+              }
+            }
+          }
+        },
+        {
+          "custom_slot": "legs",
+          "item": {
+            "id": "minecraft:leather_leggings",
+            "count": 1,
+            "components": {
+              "minecraft:dyed_color": {
+                "rgb": 16383998
+              }
+            }
+          }
+        },
+        {
+          "custom_slot": "feet",
+          "item": {
+            "id": "minecraft:leather_boots",
+            "count": 1,
+            "components": {
+              "minecraft:dyed_color": {
+                "rgb": 16383998
+              }
+            }
+          }
+        }
+      ]
+    },
+    "feather_feet": {
+      "price": 400,
+      "display_item": {
+        "id": "minecraft:feather",
+        "count": 1
+      },
+      "items": [
+        {
+          "item": {
+            "id": "minecraft:chainmail_boots",
+            "count": 1,
+            "components": {
+              "minecraft:enchantments": {
+                "levels": {
+                  "minecraft:feather_falling": 4
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

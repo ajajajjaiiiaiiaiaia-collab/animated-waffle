@@ -1,0 +1,32 @@
+{
+  "format_versions": ["10", "11", "12", "13", "14", "15", "16", "17"],
+  "category_tiers": {
+    "hardcore": {
+      "translation_key": "shop.special",
+      "display_item": {
+        "id": "minecraft:nether_star",
+        "count": 1
+      },
+      "menu_size": "normal",
+      "offers": {}
+    },
+    "normal": {
+      "translation_key": "shop.special",
+      "display_item": {
+        "id": "minecraft:nether_star",
+        "count": 1
+      },
+      "menu_size": "normal",
+      "offers": {}
+    },
+    "overpowered": {
+      "translation_key": "shop.special",
+      "display_item": {
+        "id": "minecraft:nether_star",
+        "count": 1
+      },
+      "menu_size": "normal",
+      "offers": {}
+    } 
+  }
+}
