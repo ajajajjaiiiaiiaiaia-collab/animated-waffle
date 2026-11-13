@@ -176,7 +176,7 @@ public class EggWars extends JavaPlugin
 
         for (Player player : Bukkit.getOnlinePlayers())
         {
-            Bukkit.getPluginManager().callEvent(new PlayerJoinEvent(player, null));
+            Bukkit.getPluginManager().callEvent(new PlayerJoinEvent(player, (net.kyori.adventure.text.Component) null));
         }
     }
 
