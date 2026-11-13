@@ -1,9 +1,10 @@
-# AntiTrigger - conservative triggerbot detection.
+# AntiTrigger 1.1 - conservative triggerbot detection.
 #
-# A triggerbot attacks the instant the crosshair touches an enemy, and (unlike a
-# human) almost never swings at nothing. We only flag when BOTH signals show up
-# together, over a whole window of fights. By default nobody is punished
-# automatically: staff get an alert and a log line to review.
+# A triggerbot attacks the instant the crosshair touches an enemy, WITHOUT the player moving the mouse,
+# and (unlike a human) almost never swings at nothing. A window of hits is flagged only when all the
+# signals below agree. By default nobody is punished automatically: staff get an alert and a log line.
+#
+# If you update from 1.0, delete the old config.yml so this one is generated.
 
 detection:
   range: 4.0              # blocks; how far the look-ray is traced
@@ -11,9 +12,13 @@ detection:
   window-size: 12         # how many recent hits are kept per player
   min-samples: 10         # hits needed before a window is judged
   window-seconds: 40      # hits older than this are dropped
-  instant-ticks: 2        # "instant" = attack within this many ticks of crosshair touching the enemy (1 tick = 50ms)
+  instant-ticks: 2        # "instant" = attack within this many ticks of the crosshair touching the enemy (1 tick = 50ms)
   min-instant-ratio: 0.8  # share of hits in the window that must be instant
   max-air-swings: 1       # swings at nothing allowed inside the window (humans swing a lot)
+  # Third signal: the hit happened while the player was NOT moving the mouse (the enemy walked into the crosshair).
+  require-passive: true   # false = judge only on the first two signals (more sensitive, more false positives)
+  passive-ms: 100         # no mouse movement for at least this long before the hit counts as "passive"
+  min-passive-ratio: 0.5  # share of hits in the window that must be passive
 
 safety:
   max-ping: 150           # players above this are never judged
@@ -22,15 +27,28 @@ safety:
   bypass-permission: antitrigger.bypass
 
 violations:
-  alert-vl: 2.0           # staff alert once a player has this many flagged windows
-  decay-per-minute: 0.5   # violation level falls over time so one-offs fade away
+  alert-vl: 2.0           # staff alert once a player has this many violation levels (VL)
+  reset-after-seconds: 300  # VL goes back to 0 after this many seconds without a new flag (0 = never)
+  decay-per-minute: 0.0   # optional slow decay on top of the reset (0 = off)
 
 punish:
   enabled: false          # keep false and review alerts/logs yourself
-  vl: 6.0
-  commands:
-    - "kick %player% Suspicious combat behaviour (AntiTrigger)"
+  # Each action runs ONCE when a player's VL reaches its "vl" (and again after the VL has been reset).
+  # Placeholders: %player%  %vl%   Commands run as console, without the leading slash.
+  actions:
+    - vl: 4.0
+      commands:
+        - "tellraw @a[tag=staff] {\"text\":\"[AntiTrigger] %player% reached VL %vl%\",\"color\":\"red\"}"
+    - vl: 8.0
+      commands:
+        - "kick %player% Suspicious combat behaviour (AntiTrigger)"
+    - vl: 14.0
+      commands:
+        - "ban %player% Triggerbot (AntiTrigger)"
+
+packetevents:
+  enabled: true           # use PacketEvents (if installed) for millisecond-accurate mouse-movement timing
 
 messages:
   prefix: "&c[AntiTrigger] "
-  alert: "&f%player% &7flagged &8| &7instant &f%ratio%% &8| &7air swings &f%air% &8| &7hits &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"
+  alert: "&f%player% &7flagged &8| &7instant &f%ratio%% &8| &7passive &f%passive%% &8| &7air swings &f%air% &8| &7hits &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"

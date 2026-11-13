@@ -1,7 +1,8 @@
 name: AntiTrigger
-version: "1.0.0"
+version: "1.1.0"
 main: me.starkmc.antitrigger.AntiTriggerPlugin
 api-version: "1.21"
+softdepend: [packetevents]
 description: Conservative triggerbot detection with staff alerts and no automatic punishment by default.
 commands:
   antitrigger:

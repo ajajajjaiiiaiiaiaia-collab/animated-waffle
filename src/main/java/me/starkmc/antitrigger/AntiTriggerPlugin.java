@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
@@ -45,6 +46,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 {
     private final Map<UUID, PlayerState> states = new HashMap<>();
     private final Set<UUID> alertsOff = new HashSet<>();
+    /** Last time (ms) each player moved the mouse. Written by PacketEvents (netty threads) or by the tick task. */
+    private final Map<UUID, Long> lastRotation = new ConcurrentHashMap<>();
+    private PacketHook packetHook;
     private final LegacyComponentSerializer legacy = LegacyComponentSerializer.legacyAmpersand();
 
     // settings
@@ -56,17 +60,26 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int instantTicks;
     private double minInstantRatio;
     private int maxAirSwings;
+    private boolean requirePassive;
+    private long passiveMs;
+    private double minPassiveRatio;
     private int maxPing;
     private double minTps;
     private String bedrockPrefix;
     private String bypassPermission;
     private double alertVl;
     private double decayPerMinute;
+    private long resetAfterMillis;
     private boolean punishEnabled;
-    private double punishVl;
-    private List<String> punishCommands;
+    private final List<PunishAction> punishActions = new ArrayList<>();
+    private boolean packetEventsWanted;
     private String prefix;
     private String alertFormat;
+
+    /** One tier of the punish ladder. */
+    private record PunishAction(double vl, List<String> commands)
+    {
+    }
 
     private File logFile;
 
@@ -78,7 +91,58 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.logFile = new File(this.getDataFolder(), "flags.log");
         Bukkit.getPluginManager().registerEvents(this, this);
         Bukkit.getScheduler().runTaskTimer(this, this::tickAll, 1L, 1L);
-        this.getLogger().info("AntiTrigger enabled. Automatic punishment: " + (this.punishEnabled ? "ON" : "off (alerts only)"));
+        this.hookPacketEvents();
+        this.getLogger().info("AntiTrigger enabled. Automatic punishment: " + (this.punishEnabled ? "ON (" + this.punishActions.size() + " actions)" : "off (alerts only)") + ". Mouse timing: " + (this.packetHook != null ? "PacketEvents (ms)" : "tick-based"));
+    }
+
+    @Override
+    public void onDisable()
+    {
+        this.unhookPacketEvents();
+    }
+
+    private void hookPacketEvents()
+    {
+        this.unhookPacketEvents();
+
+        if (!this.packetEventsWanted || Bukkit.getPluginManager().getPlugin("packetevents") == null)
+        {
+            return;
+        }
+
+        try
+        {
+            PacketHook hook = new PacketHook(this);
+            hook.register();
+            this.packetHook = hook;
+        }
+        catch (Throwable ex)
+        {
+            this.packetHook = null;
+            this.getLogger().warning("PacketEvents is installed but could not be used, falling back to tick timing: " + ex);
+        }
+    }
+
+    private void unhookPacketEvents()
+    {
+        if (this.packetHook != null)
+        {
+            try
+            {
+                this.packetHook.unregister();
+            }
+            catch (Throwable ignored)
+            {
+            }
+
+            this.packetHook = null;
+        }
+    }
+
+    /** Called from PacketEvents (any thread). */
+    void recordRotation(UUID id, long millis)
+    {
+        this.lastRotation.put(id, millis);
     }
 
     private void loadSettings()
@@ -93,15 +157,39 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.instantTicks = Math.max(1, c.getInt("detection.instant-ticks", 2));
         this.minInstantRatio = c.getDouble("detection.min-instant-ratio", 0.8);
         this.maxAirSwings = Math.max(0, c.getInt("detection.max-air-swings", 1));
+        this.requirePassive = c.getBoolean("detection.require-passive", true);
+        this.passiveMs = Math.max(0, c.getLong("detection.passive-ms", 100L));
+        this.minPassiveRatio = c.getDouble("detection.min-passive-ratio", 0.5);
         this.maxPing = c.getInt("safety.max-ping", 150);
         this.minTps = c.getDouble("safety.min-tps", 18.0);
         this.bedrockPrefix = c.getString("safety.bedrock-prefix", ".");
         this.bypassPermission = c.getString("safety.bypass-permission", "antitrigger.bypass");
         this.alertVl = c.getDouble("violations.alert-vl", 2.0);
-        this.decayPerMinute = c.getDouble("violations.decay-per-minute", 0.5);
+        this.decayPerMinute = c.getDouble("violations.decay-per-minute", 0.0);
+        this.resetAfterMillis = Math.max(0L, c.getLong("violations.reset-after-seconds", 300L)) * 1000L;
         this.punishEnabled = c.getBoolean("punish.enabled", false);
-        this.punishVl = c.getDouble("punish.vl", 6.0);
-        this.punishCommands = c.getStringList("punish.commands");
+        this.packetEventsWanted = c.getBoolean("packetevents.enabled", true);
+        this.punishActions.clear();
+
+        for (Map<?, ?> raw : c.getMapList("punish.actions"))
+        {
+            Object vl = raw.get("vl");
+            Object cmds = raw.get("commands");
+
+            if (vl instanceof Number number && cmds instanceof List<?> list)
+            {
+                List<String> commands = new ArrayList<>();
+
+                for (Object o : list)
+                {
+                    commands.add(String.valueOf(o));
+                }
+
+                this.punishActions.add(new PunishAction(number.doubleValue(), commands));
+            }
+        }
+
+        this.punishActions.sort((a, b) -> Double.compare(a.vl(), b.vl()));
         this.prefix = c.getString("messages.prefix", "&c[AntiTrigger] ");
         this.alertFormat = c.getString("messages.alert", "&f%player% &7flagged");
     }
@@ -127,6 +215,15 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
 
             Location eye = player.getEyeLocation();
+
+            if (this.packetHook == null && (Math.abs(eye.getYaw() - state.lastYaw) > 0.001F || Math.abs(eye.getPitch() - state.lastPitch) > 0.001F))
+            {
+                this.lastRotation.put(player.getUniqueId(), System.currentTimeMillis());
+            }
+
+            state.lastYaw = eye.getYaw();
+            state.lastPitch = eye.getPitch();
+
             RayTraceResult result = player.getWorld().rayTraceEntities(eye, eye.getDirection(), this.range, this.raySize, entity -> entity instanceof Player other && !other.equals(player) && other.getGameMode() != GameMode.SPECTATOR && !other.isDead());
             UUID hit = result != null && result.getHitEntity() != null ? result.getHitEntity().getUniqueId() : null;
 
@@ -191,7 +288,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
-        state.samples.addLast(new PlayerState.Sample(state.onTargetTicks, now));
+        long sinceRotation = System.currentTimeMillis() - this.lastRotation.getOrDefault(attacker.getUniqueId(), 0L);
+        state.samples.addLast(new PlayerState.Sample(state.onTargetTicks, now, sinceRotation >= this.passiveMs));
         state.trim(now, this.windowTicks, this.windowSize);
         this.evaluate(attacker, state);
     }
@@ -224,6 +322,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
 
         int instant = 0;
+        int passive = 0;
 
         for (PlayerState.Sample sample : state.samples)
         {
@@ -231,9 +330,15 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             {
                 instant++;
             }
+
+            if (sample.passive())
+            {
+                passive++;
+            }
         }
 
         double ratio = (double)instant / state.samples.size();
+        double passiveRatio = (double)passive / state.samples.size();
         int oldest = state.samples.peekFirst().tick();
         int air = 0;
 
@@ -245,25 +350,27 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
         }
 
-        // Both signals together: near-instant hits AND almost no swings at nothing.
-        if (ratio >= this.minInstantRatio && air <= this.maxAirSwings)
+        // All signals together: near-instant hits, almost no swings at nothing, and (optionally) a still mouse.
+        if (ratio >= this.minInstantRatio && air <= this.maxAirSwings && (!this.requirePassive || passiveRatio >= this.minPassiveRatio))
         {
-            this.flag(player, state, ratio, air, state.samples.size());
+            this.flag(player, state, ratio, passiveRatio, air, state.samples.size());
             state.samples.clear();
         }
     }
 
-    private void flag(Player player, PlayerState state, double ratio, int air, int samples)
+    private void flag(Player player, PlayerState state, double ratio, double passiveRatio, int air, int samples)
     {
-        state.decay(this.decayPerMinute);
+        state.refreshVl(this.decayPerMinute, this.resetAfterMillis);
         state.vl += 1.0;
         state.totalFlags++;
+        state.lastFlagMillis = System.currentTimeMillis();
 
         String ratioText = String.valueOf(Math.round(ratio * 100.0));
+        String passiveText = String.valueOf(Math.round(passiveRatio * 100.0));
         String vlText = String.format(Locale.ROOT, "%.1f", state.vl);
-        String line = this.alertFormat.replace("%player%", player.getName()).replace("%ratio%", ratioText).replace("%air%", String.valueOf(air)).replace("%samples%", String.valueOf(samples)).replace("%vl%", vlText).replace("%ping%", String.valueOf(player.getPing()));
+        String line = this.alertFormat.replace("%player%", player.getName()).replace("%ratio%", ratioText).replace("%passive%", passiveText).replace("%air%", String.valueOf(air)).replace("%samples%", String.valueOf(samples)).replace("%vl%", vlText).replace("%ping%", String.valueOf(player.getPing()));
 
-        this.writeLog(player.getName() + " vl=" + vlText + " instant=" + ratioText + "% airSwings=" + air + " hits=" + samples + " ping=" + player.getPing() + " tps=" + String.format(Locale.ROOT, "%.1f", Bukkit.getTPS()[0]) + (state.vl >= this.alertVl ? " [ALERTED]" : ""));
+        this.writeLog(player.getName() + " vl=" + vlText + " instant=" + ratioText + "% passive=" + passiveText + "% airSwings=" + air + " hits=" + samples + " ping=" + player.getPing() + " tps=" + String.format(Locale.ROOT, "%.1f", Bukkit.getTPS()[0]) + (state.vl >= this.alertVl ? " [ALERTED]" : ""));
 
         if (state.vl >= this.alertVl)
         {
@@ -280,14 +387,27 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             Bukkit.getConsoleSender().sendMessage(message);
         }
 
-        if (this.punishEnabled && state.vl >= this.punishVl)
+        if (this.punishEnabled)
         {
-            for (String command : this.punishCommands)
-            {
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command.replace("%player%", player.getName()));
-            }
+            this.runPunishActions(player, state, vlText);
+        }
+    }
 
-            state.vl = 0.0;
+    private void runPunishActions(Player player, PlayerState state, String vlText)
+    {
+        for (int i = 0; i < this.punishActions.size(); i++)
+        {
+            PunishAction action = this.punishActions.get(i);
+
+            if (state.vl >= action.vl() && state.firedActions.add(i))
+            {
+                for (String command : action.commands())
+                {
+                    String ready = command.replace("%player%", player.getName()).replace("%vl%", vlText);
+                    this.writeLog(player.getName() + " running action at VL " + action.vl() + ": " + ready);
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), ready);
+                }
+            }
         }
     }
 
@@ -312,6 +432,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     public void onQuit(PlayerQuitEvent event)
     {
         this.states.remove(event.getPlayer().getUniqueId());
+        this.lastRotation.remove(event.getPlayer().getUniqueId());
     }
 
     @Override
@@ -354,7 +475,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
                 }
 
                 PlayerState state = this.state(target);
-                state.decay(this.decayPerMinute);
+                state.refreshVl(this.decayPerMinute, this.resetAfterMillis);
                 sender.sendMessage(this.legacy.deserialize(this.prefix + "&f" + target.getName() + " &7VL &f" + String.format(Locale.ROOT, "%.1f", state.vl) + " &7flags &f" + state.totalFlags + " &7window hits &f" + state.samples.size() + " &7ping &f" + target.getPing() + "ms"));
                 return true;
             }
@@ -374,7 +495,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
             case "reload":
                 this.loadSettings();
-                sender.sendMessage(this.legacy.deserialize(this.prefix + "&aReloaded."));
+                this.hookPacketEvents();
+                sender.sendMessage(this.legacy.deserialize(this.prefix + "&aReloaded. Mouse timing: " + (this.packetHook != null ? "PacketEvents" : "tick-based")));
                 return true;
             default:
                 sender.sendMessage(this.legacy.deserialize("&cUsage: /antitrigger <alerts|info <player>|reset <player>|reload>"));

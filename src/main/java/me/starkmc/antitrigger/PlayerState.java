@@ -1,33 +1,52 @@
 package me.starkmc.antitrigger;
 
 import java.util.ArrayDeque;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /** Per-player data kept in memory only. */
 final class PlayerState
 {
-    /** One qualifying hit: how many ticks the crosshair had been on the victim, and when it happened. */
-    record Sample(int reaction, int tick)
+    /** One qualifying hit: ticks the crosshair was on the victim, when it happened, and whether the mouse was still. */
+    record Sample(int reaction, int tick, boolean passive)
     {
     }
 
     UUID target;
     int onTargetTicks;
     int lastAttackTick = -1000;
+    float lastYaw;
+    float lastPitch;
 
     final ArrayDeque<Sample> samples = new ArrayDeque<>();
     final ArrayDeque<Integer> airSwings = new ArrayDeque<>();
 
     double vl;
+    long lastFlagMillis;
     long lastDecayMillis = System.currentTimeMillis();
     int totalFlags;
+    /** Indexes of punish actions already run during this VL climb. */
+    final Set<Integer> firedActions = new HashSet<>();
 
-    void decay(double perMinute)
+    /** Applies the timed reset and the optional slow decay. */
+    void refreshVl(double decayPerMinute, long resetAfterMillis)
     {
         long now = System.currentTimeMillis();
-        double minutes = (now - this.lastDecayMillis) / 60000.0;
+
+        if (this.vl > 0.0 && resetAfterMillis > 0 && now - this.lastFlagMillis >= resetAfterMillis)
+        {
+            this.vl = 0.0;
+            this.firedActions.clear();
+        }
+
+        if (decayPerMinute > 0.0)
+        {
+            double minutes = (now - this.lastDecayMillis) / 60000.0;
+            this.vl = Math.max(0.0, this.vl - decayPerMinute * minutes);
+        }
+
         this.lastDecayMillis = now;
-        this.vl = Math.max(0.0, this.vl - perMinute * minutes);
     }
 
     void trim(int nowTick, int windowTicks, int maxSamples)

@@ -5,10 +5,11 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>me.starkmc</groupId>
   <artifactId>AntiTrigger</artifactId>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
   <packaging>jar</packaging>
 
   <properties>
+    <packetevents.version>2.11.1</packetevents.version>
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
@@ -18,6 +19,10 @@
       <id>papermc</id>
       <url>https://repo.papermc.io/repository/maven-public/</url>
     </repository>
+    <repository>
+      <id>codemc-releases</id>
+      <url>https://repo.codemc.io/repository/maven-releases/</url>
+    </repository>
   </repositories>
 
   <dependencies>
@@ -25,6 +30,12 @@
       <groupId>io.papermc.paper</groupId>
       <artifactId>paper-api</artifactId>
       <version>1.21.11-R0.1-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.github.retrooper</groupId>
+      <artifactId>packetevents-spigot</artifactId>
+      <version>${packetevents.version}</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
