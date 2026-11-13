@@ -32,19 +32,14 @@ violations:
   decay-per-minute: 0.0   # optional slow decay on top of the reset (0 = off)
 
 punish:
-  enabled: false          # keep false and review alerts/logs yourself
+  enabled: true           # false = alerts and logs only, nobody is punished automatically
   # Each action runs ONCE when a player's VL reaches its "vl" (and again after the VL has been reset).
   # Placeholders: %player%  %vl%   Commands run as console, without the leading slash.
+  # Note: "tempban" is not a vanilla command; it needs EssentialsX, LiteBans, or your StarkModeration.
   actions:
-    - vl: 4.0
+    - vl: 3.0
       commands:
-        - "tellraw @a[tag=staff] {\"text\":\"[AntiTrigger] %player% reached VL %vl%\",\"color\":\"red\"}"
-    - vl: 8.0
-      commands:
-        - "kick %player% Suspicious combat behaviour (AntiTrigger)"
-    - vl: 14.0
-      commands:
-        - "ban %player% Triggerbot (AntiTrigger)"
+        - "tempban %player% 1d Triggerbot"
 
 packetevents:
   enabled: true           # use PacketEvents (if installed) for millisecond-accurate mouse-movement timing
