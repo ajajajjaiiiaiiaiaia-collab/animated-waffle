@@ -34,6 +34,10 @@ final class AiReviewer
         - High ping or low TPS make the server-side ray lag behind the real crosshair; judge ping and tps before trusting off-target attacks.
         - Knockback pushes the target back into the crosshair, creating many fast hits at close range.
         - Strafing and close fights produce natural big rotation changes; smooth, gradual angle error reduction is normal.
+        - Attacks closer than 1.5 blocks are left out of the statistics because the angle is meaningless when the target overlaps the attacker (attacks_ignored_closer_than_1_5_blocks says how many).
+        - Distances are measured on the server. With ping around 100ms a legitimate attacker can appear up to about 0.5 blocks beyond the real reach limit of 3.0, so only distances clearly above 3.6 count as reach evidence.
+        - frames cover only the last frame_window_seconds, attacks cover attack_window_seconds (see seconds_ago on each attack). They are not the same moment and attacks may belong to different fights.
+        - Count only what the statistics say. Do not claim "X of Y attacks" with numbers that are not in the evidence.
         - A handful of attacks is weak evidence. A banned innocent player is much worse than a missed cheater, so be conservative.
         Reply with ONLY one JSON object and nothing else:
         {"verdict":"cheating"|"legit"|"uncertain","confidence":0.0-1.0,"cheat_type":"triggerbot"|"killaura"|"aim_assist"|"autoclicker"|"reach"|"other"|"none","reasons":["short concrete reason citing numbers from the evidence", "..."]}

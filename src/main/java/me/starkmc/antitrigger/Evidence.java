@@ -141,9 +141,28 @@ final class Evidence
     }
 
     /** Summary numbers computed from the recorded window, so the reviewer does not have to do the maths. */
-    static JsonObject stats(Collection<Frame> frames, Collection<AttackRec> attacks)
+    /** Below this distance the target overlaps the attacker and the aim angle is meaningless (lag alone can flip it). */
+    static final double MIN_RELIABLE_DISTANCE = 1.5;
+
+    static JsonObject stats(Collection<Frame> frames, Collection<AttackRec> allAttacks)
     {
         JsonObject s = new JsonObject();
+        List<AttackRec> attacks = new ArrayList<>();
+        int tooClose = 0;
+
+        for (AttackRec a : allAttacks)
+        {
+            if (a.dist() >= MIN_RELIABLE_DISTANCE)
+            {
+                attacks.add(a);
+            }
+            else
+            {
+                tooClose++;
+            }
+        }
+
+        s.addProperty("attacks_ignored_closer_than_1_5_blocks", tooClose);
         List<Frame> list = new ArrayList<>(frames);
         double maxSpeed = 0.0;
         double sumSpeedWithTarget = 0.0;

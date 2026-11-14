@@ -59,7 +59,8 @@ offtarget:
 # When a flag alerts staff, it is saved as plugins/AntiTrigger/evidence/<player>_<time>_<type>.json.
 evidence:
   enabled: true
-  seconds: 6              # 2 to 10
+  seconds: 6              # 2 to 10: how long the per-tick frames are kept
+  attack-seconds: 30      # how far back the attack list goes (older attacks belong to other fights)
   save-on-alert: true
   folder: evidence
   keep-files: 300         # oldest files are deleted beyond this

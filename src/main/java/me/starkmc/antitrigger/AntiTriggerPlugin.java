@@ -97,6 +97,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private final AiReviewer reviewer = new AiReviewer();
     private boolean evidenceEnabled;
     private int evidenceTicks;
+    private int evidenceAttackTicks;
     private boolean evidenceOnAlert;
     private String evidenceFolder;
     private int evidenceKeepFiles;
@@ -246,6 +247,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.offVl = c.getDouble("offtarget.vl", 1.0);
         this.evidenceEnabled = c.getBoolean("evidence.enabled", true);
         this.evidenceTicks = Math.max(40, Math.min(200, c.getInt("evidence.seconds", 6) * 20));
+        this.evidenceAttackTicks = Math.max(100, Math.min(1200, c.getInt("evidence.attack-seconds", 30) * 20));
         this.evidenceOnAlert = c.getBoolean("evidence.save-on-alert", true);
         this.evidenceFolder = c.getString("evidence.folder", "evidence");
         this.evidenceKeepFiles = Math.max(10, c.getInt("evidence.keep-files", 300));
@@ -728,12 +730,28 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         long still = System.currentTimeMillis() - this.lastRotation.getOrDefault(attacker.getUniqueId(), 0L);
         state.attackLog.addLast(new Evidence.AttackRec(now, victim.getName(), aim[0], on, this.wideRayHits(attacker, victim), on ? state.onTargetTicks : 0, still, state.cps(now), aim[1], aim[2], aim[3], damage, attacker.getAttackCooldown(), this.skipReason(attacker)));
 
-        while (state.attackLog.size() > 40)
+        while (!state.attackLog.isEmpty() && (state.attackLog.size() > 40 || now - state.attackLog.peekFirst().tick() > this.evidenceAttackTicks))
         {
             state.attackLog.pollFirst();
         }
 
         this.maybeScreen(attacker, state);
+    }
+
+    /** Attacks that are recent enough to describe the current fight. */
+    private List<Evidence.AttackRec> recentAttacks(PlayerState state, int nowTick)
+    {
+        List<Evidence.AttackRec> recent = new ArrayList<>();
+
+        for (Evidence.AttackRec attack : state.attackLog)
+        {
+            if (nowTick - attack.tick() <= this.evidenceAttackTicks)
+            {
+                recent.add(attack);
+            }
+        }
+
+        return recent;
     }
 
     /**
@@ -756,19 +774,27 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         state.lastScreenCheck = ms;
 
-        if (state.attackLog.size() < 4 || this.skipReason(player) != null)
+        List<Evidence.AttackRec> recent = this.recentAttacks(state, Bukkit.getCurrentTick());
+
+        if (recent.size() < 4 || this.skipReason(player) != null)
         {
             return;
         }
 
-        JsonObject st = Evidence.stats(state.frames, state.attackLog);
+        JsonObject st = Evidence.stats(state.frames, recent);
         int n = st.get("attacks_recorded").getAsInt();
+
+        if (n < 4)
+        {
+            return;
+        }
+
         double offFraction = st.get("attacks_off_victim_server_ray").getAsDouble() / n;
         int instant = 0;
 
-        for (Evidence.AttackRec attack : state.attackLog)
+        for (Evidence.AttackRec attack : recent)
         {
-            if (attack.onCrosshair() && attack.reaction() <= this.instantTicks)
+            if (attack.dist() >= Evidence.MIN_RELIABLE_DISTANCE && attack.onCrosshair() && attack.reaction() <= this.instantTicks)
             {
                 instant++;
             }
@@ -906,7 +932,11 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         th.addProperty("alert_vl", this.alertVl);
         root.add("thresholds", th);
 
-        root.add("stats", Evidence.stats(state.frames, state.attackLog));
+        int nowTick = Bukkit.getCurrentTick();
+        List<Evidence.AttackRec> recent = this.recentAttacks(state, nowTick);
+        root.addProperty("frame_window_seconds", this.evidenceTicks / 20);
+        root.addProperty("attack_window_seconds", this.evidenceAttackTicks / 20);
+        root.add("stats", Evidence.stats(state.frames, recent));
 
         JsonArray history = new JsonArray();
 
@@ -937,9 +967,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         JsonArray attacks = new JsonArray();
 
-        for (Evidence.AttackRec attack : state.attackLog)
+        for (Evidence.AttackRec attack : recent)
         {
-            attacks.add(attack.toJson());
+            JsonObject entry = attack.toJson();
+            entry.addProperty("seconds_ago", Evidence.r((nowTick - attack.tick()) / 20.0, 1));
+            entry.addProperty("angle_reliable", attack.dist() >= Evidence.MIN_RELIABLE_DISTANCE);
+            attacks.add(entry);
         }
 
         root.add("attacks", attacks);
