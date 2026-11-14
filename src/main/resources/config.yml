@@ -1,4 +1,4 @@
-# AntiTrigger 1.1 - conservative triggerbot detection.
+# AntiTrigger 1.3 - triggerbot + off-crosshair hit detection.
 #
 # A triggerbot attacks the instant the crosshair touches an enemy, WITHOUT the player moving the mouse,
 # and (unlike a human) almost never swings at nothing. A window of hits is flagged only when all the
@@ -32,7 +32,7 @@ violations:
   decay-per-minute: 0.0   # optional slow decay on top of the reset (0 = off)
 
 punish:
-  enabled: true           # false = alerts and logs only, nobody is punished automatically
+  enabled: false          # false = alerts and logs only, nobody is punished automatically
   # Each action runs ONCE when a player's VL reaches its "vl" (and again after the VL has been reset).
   # Placeholders: %player%  %vl%   Commands run as console, without the leading slash.
   # Note: "tempban" is not a vanilla command; it needs EssentialsX, LiteBans, or your StarkModeration.
@@ -41,9 +41,23 @@ punish:
       commands:
         - "tempban %player% 1d Triggerbot"
 
+# Second check: attacks where the crosshair was AWAY from the victim (killaura / aim assist / hitbox expand).
+# EVERY attack counts, normal hits and off-crosshair hits together, so mixing in normal hits does not hide it.
+# A wide ray plus a short grace period absorb lag, so only clearly-off attacks count as "off".
+offtarget:
+  enabled: true
+  window-size: 6          # last N attacks kept per player
+  min-hits: 4             # attacks needed before the window is judged
+  min-ratio: 0.6          # share of those attacks that must be off-crosshair (0.6 = 60%)
+  window-seconds: 20      # attacks older than this are dropped
+  ray-size: 0.5           # extra-wide hitbox used to decide "off"; bigger = fewer false flags
+  grace-ticks: 3          # the crosshair counts as on-target if it touched the victim this recently (1 tick = 50ms)
+  vl: 1.0                 # VL added per flag; the punish ladder above applies
+
 packetevents:
   enabled: true           # use PacketEvents (if installed) for millisecond-accurate mouse-movement timing
 
 messages:
   prefix: "&c[AntiTrigger] "
   alert: "&f%player% &7flagged &8| &7instant &f%ratio%% &8| &7passive &f%passive%% &8| &7air swings &f%air% &8| &7hits &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"
+  offtarget-alert: "&f%player% &7hits off crosshair &8| &7off-target &f%ratio%% &8| &7attacks &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"

@@ -76,6 +76,17 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private boolean packetEventsWanted;
     private String prefix;
     private String alertFormat;
+    private String offAlertFormat;
+
+    // off-target check: attacks where the crosshair was away from the victim
+    private boolean offEnabled;
+    private int offWindowSize;
+    private int offMinHits;
+    private double offMinRatio;
+    private int offGraceTicks;
+    private double offRaySize;
+    private int offWindowTicks;
+    private double offVl;
 
     /** One tier of the punish ladder. */
     private record PunishAction(double vl, List<String> commands)
@@ -193,6 +204,15 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.punishActions.sort((a, b) -> Double.compare(a.vl(), b.vl()));
         this.prefix = c.getString("messages.prefix", "&c[AntiTrigger] ");
         this.alertFormat = c.getString("messages.alert", "&f%player% &7flagged");
+        this.offAlertFormat = c.getString("messages.offtarget-alert", "&f%player% &7hits off crosshair &8| &7off-target &f%ratio%% &8| &7attacks &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms");
+        this.offEnabled = c.getBoolean("offtarget.enabled", true);
+        this.offWindowSize = Math.max(3, c.getInt("offtarget.window-size", 6));
+        this.offMinHits = Math.min(this.offWindowSize, Math.max(3, c.getInt("offtarget.min-hits", 4)));
+        this.offMinRatio = c.getDouble("offtarget.min-ratio", 0.6);
+        this.offGraceTicks = Math.max(0, c.getInt("offtarget.grace-ticks", 3));
+        this.offRaySize = Math.max(0.1, c.getDouble("offtarget.ray-size", 0.5));
+        this.offWindowTicks = Math.max(20, c.getInt("offtarget.window-seconds", 20) * 20);
+        this.offVl = c.getDouble("offtarget.vl", 1.0);
     }
 
     private PlayerState state(Player player)
@@ -227,6 +247,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
             RayTraceResult result = player.getWorld().rayTraceEntities(eye, eye.getDirection(), this.range, this.raySize, entity -> entity instanceof Player other && !other.equals(player) && other.getGameMode() != GameMode.SPECTATOR && !other.isDead());
             UUID hit = result != null && result.getHitEntity() != null ? result.getHitEntity().getUniqueId() : null;
+
+            if (hit != null)
+            {
+                state.seenVictim = hit;
+                state.seenTick = Bukkit.getCurrentTick();
+            }
 
             if (hit != null && hit.equals(state.target))
             {
@@ -286,8 +312,15 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
+        boolean onTarget = victim.getUniqueId().equals(state.target) && state.onTargetTicks >= 1;
+
+        if (this.offEnabled)
+        {
+            this.recordAttempt(attacker, state, victim, now, onTarget);
+        }
+
         // Only judge hits where our own look-ray agrees the crosshair was on the victim.
-        if (!victim.getUniqueId().equals(state.target) || state.onTargetTicks < 1)
+        if (!onTarget)
         {
             this.debug(attacker, "hit ignored: server look-ray was not on " + victim.getName() + " (lag or hitbox mismatch)");
             return;
@@ -298,6 +331,79 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.debug(attacker, "hit on " + victim.getName() + ": crosshair on target for " + state.onTargetTicks + " tick(s) (instant if <= " + this.instantTicks + "), mouse still for " + sinceRotation + "ms (passive if >= " + this.passiveMs + "), air swings in window " + state.airSwings.size());
         state.trim(now, this.windowTicks, this.windowSize);
         this.evaluate(attacker, state);
+    }
+
+    /**
+     * Every attack counts, hits that landed normally and hits where the crosshair was away from the victim.
+     * A wide ray (and a short grace period after the ray last touched the victim) absorbs lag and hitbox rounding,
+     * so only attacks that are clearly away from the victim count as "off".
+     */
+    private void recordAttempt(Player attacker, PlayerState state, Player victim, int now, boolean onTarget)
+    {
+        boolean on = onTarget || (victim.getUniqueId().equals(state.seenVictim) && now - state.seenTick <= this.offGraceTicks) || this.wideRayHits(attacker, victim);
+
+        state.attempts.addLast(new PlayerState.Attempt(now, !on));
+        state.trimAttempts(now, this.offWindowTicks, this.offWindowSize);
+
+        int off = 0;
+
+        for (PlayerState.Attempt attempt : state.attempts)
+        {
+            if (attempt.off())
+            {
+                off++;
+            }
+        }
+
+        double ratio = (double)off / state.attempts.size();
+        this.debug(attacker, "attack on " + victim.getName() + ": " + (on ? "on crosshair" : "OFF crosshair") + " | window off-target " + off + "/" + state.attempts.size() + " (" + Math.round(ratio * 100.0) + "%, need " + Math.round(this.offMinRatio * 100.0) + "% from " + this.offMinHits + " attacks)");
+
+        if (state.attempts.size() >= this.offMinHits && ratio >= this.offMinRatio)
+        {
+            this.flagOffTarget(attacker, state, ratio, state.attempts.size());
+            state.attempts.clear();
+        }
+    }
+
+    private boolean wideRayHits(Player attacker, Player victim)
+    {
+        Location eye = attacker.getEyeLocation();
+        RayTraceResult result = attacker.getWorld().rayTraceEntities(eye, eye.getDirection(), this.range + 1.0, this.offRaySize, entity -> entity.equals(victim));
+        return result != null && victim.equals(result.getHitEntity());
+    }
+
+    private void flagOffTarget(Player player, PlayerState state, double ratio, int samples)
+    {
+        state.refreshVl(this.decayPerMinute, this.resetAfterMillis);
+        state.vl += this.offVl;
+        state.totalFlags++;
+        state.lastFlagMillis = System.currentTimeMillis();
+
+        String ratioText = String.valueOf(Math.round(ratio * 100.0));
+        String vlText = String.format(Locale.ROOT, "%.1f", state.vl);
+        String line = this.offAlertFormat.replace("%player%", player.getName()).replace("%ratio%", ratioText).replace("%samples%", String.valueOf(samples)).replace("%vl%", vlText).replace("%ping%", String.valueOf(player.getPing()));
+
+        this.writeLog(player.getName() + " vl=" + vlText + " OFF-TARGET=" + ratioText + "% attacks=" + samples + " ping=" + player.getPing() + " tps=" + String.format(Locale.ROOT, "%.1f", Bukkit.getTPS()[0]) + (state.vl >= this.alertVl ? " [ALERTED]" : ""));
+
+        if (state.vl >= this.alertVl)
+        {
+            Component message = this.legacy.deserialize(this.prefix + line);
+
+            for (Player staff : Bukkit.getOnlinePlayers())
+            {
+                if (staff.hasPermission("antitrigger.alerts") && !this.alertsOff.contains(staff.getUniqueId()))
+                {
+                    staff.sendMessage(message);
+                }
+            }
+
+            Bukkit.getConsoleSender().sendMessage(message);
+        }
+
+        if (this.punishEnabled)
+        {
+            this.runPunishActions(player, state, vlText);
+        }
     }
 
     /** Returns why a player's hits are not judged, or null when they are. */

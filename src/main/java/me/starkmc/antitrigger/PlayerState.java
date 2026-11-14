@@ -13,6 +13,16 @@ final class PlayerState
     {
     }
 
+    /** One attack: when it happened and whether the crosshair was away from the victim. */
+    record Attempt(int tick, boolean off)
+    {
+    }
+
+    final ArrayDeque<Attempt> attempts = new ArrayDeque<>();
+    /** Last player the look-ray touched, and when. */
+    UUID seenVictim;
+    int seenTick = -1000;
+
     UUID target;
     int onTargetTicks;
     int lastAttackTick = -1000;
@@ -59,6 +69,14 @@ final class PlayerState
         while (!this.airSwings.isEmpty() && nowTick - this.airSwings.peekFirst() > windowTicks)
         {
             this.airSwings.pollFirst();
+        }
+    }
+
+    void trimAttempts(int nowTick, int windowTicks, int maxAttempts)
+    {
+        while (!this.attempts.isEmpty() && (nowTick - this.attempts.peekFirst().tick() > windowTicks || this.attempts.size() > maxAttempts))
+        {
+            this.attempts.pollFirst();
         }
     }
 }

@@ -26,6 +26,6 @@ jobs:
         run: |
           gh release delete antitrigger-latest --cleanup-tag --yes || true
           gh release create antitrigger-latest target/AntiTrigger-*.jar \
-            --title "AntiTrigger 1.2.0 latest build" \
+            --title "AntiTrigger 1.3.0 latest build" \
             --notes "Automatic build from commit ${GITHUB_SHA::7}" \
             --target "$GITHUB_SHA"
