@@ -1200,13 +1200,45 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
                 });
                 return true;
             }
+            case "apitest":
+            {
+                String key = this.apiKey();
+                sender.sendMessage(this.legacy.deserialize(this.prefix + "&7Provider &f" + this.reviewProvider + " &8| &7model &f" + this.reviewModel + " &8| &7key &f" + (key.isEmpty() ? "&cmissing" : key.substring(0, Math.min(4, key.length())) + "****") + " &8| &7review enabled &f" + this.reviewEnabled + " &8| &7mode &f" + (this.reviewPrimary ? "primary" : "confirm")));
+
+                if (key.isEmpty())
+                {
+                    sender.sendMessage(this.legacy.deserialize(this.prefix + "&cNo API key. Set review.api-key in config.yml (or the ANTHROPIC_API_KEY / GEMINI_API_KEY environment variable), then /antitrigger reload."));
+                    return true;
+                }
+
+                sender.sendMessage(this.legacy.deserialize(this.prefix + "&7Sending a test request..."));
+                String testEvidence = "{\"connectivity_test\":true,\"instruction\":\"There is no real player. Reply only with verdict uncertain, confidence 0, cheat_type none and reasons [\\\"api ok\\\"].\"}";
+                long started = System.currentTimeMillis();
+
+                Bukkit.getScheduler().runTaskAsynchronously(this, () ->
+                {
+                    AiReviewer.Verdict v = this.reviewer.review(this.reviewProvider, key, this.reviewModel, this.reviewTimeout, testEvidence);
+                    long took = System.currentTimeMillis() - started;
+                    Bukkit.getScheduler().runTask(this, () ->
+                    {
+                        if (v.error() != null)
+                        {
+                            sender.sendMessage(this.legacy.deserialize(this.prefix + "&c\u2716 API test FAILED after " + took + "ms: " + v.error()));
+                            return;
+                        }
+
+                        sender.sendMessage(this.legacy.deserialize(this.prefix + "&a\u2714 API works &8| &7replied in &f" + took + "ms &8| &7verdict &f" + v.verdict() + " &8| &7" + String.join("; ", v.reasons())));
+                    });
+                });
+                return true;
+            }
             case "reload":
                 this.loadSettings();
                 this.hookPacketEvents();
                 sender.sendMessage(this.legacy.deserialize(this.prefix + "&aReloaded. Mouse timing: " + (this.packetHook != null ? "PacketEvents" : "tick-based")));
                 return true;
             default:
-                sender.sendMessage(this.legacy.deserialize("&cUsage: /antitrigger <alerts|info <player>|reset <player>|debug <player>|evidence <player>|review <player>|reload>"));
+                sender.sendMessage(this.legacy.deserialize("&cUsage: /antitrigger <alerts|info <player>|reset <player>|debug <player>|evidence <player>|review <player>|apitest|reload>"));
                 return true;
         }
     }
@@ -1223,7 +1255,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         if (args.length == 1)
         {
-            for (String s : List.of("alerts", "info", "reset", "debug", "evidence", "review", "reload"))
+            for (String s : List.of("alerts", "info", "reset", "debug", "evidence", "review", "apitest", "reload"))
             {
                 if (s.startsWith(args[0].toLowerCase(Locale.ROOT)))
                 {
