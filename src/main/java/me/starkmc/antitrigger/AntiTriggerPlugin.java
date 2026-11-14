@@ -102,6 +102,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int evidenceKeepFiles;
     private boolean reviewEnabled;
     private String reviewApiKey;
+    private String reviewProvider;
     private String reviewModel;
     private double reviewMinConfidence;
     private int reviewTimeout;
@@ -240,7 +241,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.evidenceKeepFiles = Math.max(10, c.getInt("evidence.keep-files", 300));
         this.reviewEnabled = c.getBoolean("review.enabled", false);
         this.reviewApiKey = c.getString("review.api-key", "");
-        this.reviewModel = c.getString("review.model", "claude-sonnet-5-5");
+        this.reviewProvider = "gemini".equalsIgnoreCase(c.getString("review.provider", "anthropic")) ? "gemini" : "anthropic";
+        String configuredModel = c.getString("review.model", "");
+        this.reviewModel = configuredModel == null || configuredModel.isBlank() ? ("gemini".equals(this.reviewProvider) ? "gemini-3.8-flash" : "claude-sonnet-5-5") : configuredModel.trim();
         this.reviewMinConfidence = c.getDouble("review.min-confidence", 0.85);
         this.reviewTimeout = Math.max(3, c.getInt("review.timeout-seconds", 12));
         this.reviewCooldownMs = Math.max(0, c.getInt("review.cooldown-seconds", 20)) * 1000L;
@@ -614,7 +617,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         if (key.isEmpty())
         {
-            String env = System.getenv("ANTHROPIC_API_KEY");
+            String env = System.getenv("gemini".equals(this.reviewProvider) ? "GEMINI_API_KEY" : "ANTHROPIC_API_KEY");
             key = env == null ? "" : env.trim();
         }
 
@@ -840,7 +843,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         Bukkit.getScheduler().runTaskAsynchronously(this, () ->
         {
-            AiReviewer.Verdict verdict = this.reviewer.review(this.apiKey(), this.reviewModel, this.reviewTimeout, evidence);
+            AiReviewer.Verdict verdict = this.reviewer.review(this.reviewProvider, this.apiKey(), this.reviewModel, this.reviewTimeout, evidence);
             Bukkit.getScheduler().runTask(this, () -> this.finishReview(name, state, index, action, vlText, verdict));
         });
     }
@@ -1010,7 +1013,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
                 if (this.apiKey().isEmpty())
                 {
-                    sender.sendMessage(this.legacy.deserialize(this.prefix + "&cNo API key. Set review.api-key in config.yml (or the ANTHROPIC_API_KEY environment variable) and /antitrigger reload."));
+                    sender.sendMessage(this.legacy.deserialize(this.prefix + "&cNo API key. Set review.api-key in config.yml (or the ANTHROPIC_API_KEY / GEMINI_API_KEY environment variable) and /antitrigger reload."));
                     return true;
                 }
 
@@ -1020,7 +1023,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
                 Bukkit.getScheduler().runTaskAsynchronously(this, () ->
                 {
-                    AiReviewer.Verdict v = this.reviewer.review(this.apiKey(), this.reviewModel, this.reviewTimeout, evidence);
+                    AiReviewer.Verdict v = this.reviewer.review(this.reviewProvider, this.apiKey(), this.reviewModel, this.reviewTimeout, evidence);
                     Bukkit.getScheduler().runTask(this, () ->
                     {
                         if (v.error() != null)

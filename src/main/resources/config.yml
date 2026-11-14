@@ -64,14 +64,15 @@ evidence:
   folder: evidence
   keep-files: 300         # oldest files are deleted beyond this
 
-# AI review: before a punish action runs, the evidence is sent to the Anthropic API for a second opinion.
+# AI review: before a punish action runs, the evidence is sent to an AI API (Claude or Gemini) for a second opinion.
 # The action only runs if the AI says "cheating" with at least min-confidence. Otherwise staff get the AI's reasons.
-# Needs an API key: put it here or in the ANTHROPIC_API_KEY environment variable. Keep this file private.
+# Needs an API key: put it here or in the ANTHROPIC_API_KEY / GEMINI_API_KEY environment variable. Keep this file private.
 # Test it without punishing anyone:  /antitrigger review <player>
 review:
   enabled: false
+  provider: gemini        # gemini or anthropic
   api-key: ""
-  model: "claude-sonnet-5-5"
+  model: ""               # empty = default for the provider (gemini-3.8-flash / claude-sonnet-5-5)
   min-confidence: 0.85
   timeout-seconds: 12
   cooldown-seconds: 20    # minimum time between two reviews of the same player

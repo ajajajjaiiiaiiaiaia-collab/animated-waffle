@@ -42,50 +42,12 @@ final class AiReviewer
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
-    Verdict review(String apiKey, String model, int timeoutSeconds, String evidenceJson)
+    Verdict review(String provider, String apiKey, String model, int timeoutSeconds, String evidenceJson)
     {
         try
         {
-            JsonObject body = new JsonObject();
-            body.addProperty("model", model);
-            body.addProperty("max_tokens", 900);
-            body.addProperty("system", SYSTEM);
-            JsonArray messages = new JsonArray();
-            JsonObject message = new JsonObject();
-            message.addProperty("role", "user");
-            message.addProperty("content", "Evidence (JSON):\n" + evidenceJson + "\n\nReply with the JSON verdict only.");
-            messages.add(message);
-            body.add("messages", messages);
-
-            HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.anthropic.com/v1/messages"))
-                .timeout(Duration.ofSeconds(Math.max(3, timeoutSeconds)))
-                .header("x-api-key", apiKey)
-                .header("anthropic-version", "2023-06-01")
-                .header("content-type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
-                .build();
-            HttpResponse<String> response = this.http.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() != 200)
-            {
-                String text = response.body() == null ? "" : response.body();
-                return failure("HTTP " + response.statusCode() + " " + (text.length() > 200 ? text.substring(0, 200) : text));
-            }
-
-            JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
-            StringBuilder out = new StringBuilder();
-
-            for (JsonElement element : root.getAsJsonArray("content"))
-            {
-                JsonObject block = element.getAsJsonObject();
-
-                if (block.has("type") && "text".equals(block.get("type").getAsString()) && block.has("text"))
-                {
-                    out.append(block.get("text").getAsString());
-                }
-            }
-
-            String reply = out.toString();
+            String userText = "Evidence (JSON):\n" + evidenceJson + "\n\nReply with the JSON verdict only.";
+            String reply = "gemini".equals(provider) ? this.callGemini(apiKey, model, timeoutSeconds, userText) : this.callAnthropic(apiKey, model, timeoutSeconds, userText);
             int from = reply.indexOf('{');
             int to = reply.lastIndexOf('}');
 
@@ -118,6 +80,113 @@ final class AiReviewer
             }
 
             return failure(ex.getClass().getSimpleName() + ": " + ex.getMessage());
+        }
+    }
+
+    private String callAnthropic(String apiKey, String model, int timeoutSeconds, String userText) throws Exception
+    {
+        JsonObject body = new JsonObject();
+        body.addProperty("model", model);
+        body.addProperty("max_tokens", 900);
+        body.addProperty("system", SYSTEM);
+        JsonArray messages = new JsonArray();
+        JsonObject message = new JsonObject();
+        message.addProperty("role", "user");
+        message.addProperty("content", userText);
+        messages.add(message);
+        body.add("messages", messages);
+
+        HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.anthropic.com/v1/messages"))
+            .timeout(Duration.ofSeconds(Math.max(3, timeoutSeconds)))
+            .header("x-api-key", apiKey)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+            .build();
+        HttpResponse<String> response = this.http.send(request, HttpResponse.BodyHandlers.ofString());
+        this.requireOk(response);
+        JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+        StringBuilder out = new StringBuilder();
+
+        for (JsonElement element : root.getAsJsonArray("content"))
+        {
+            JsonObject block = element.getAsJsonObject();
+
+            if (block.has("type") && "text".equals(block.get("type").getAsString()) && block.has("text"))
+            {
+                out.append(block.get("text").getAsString());
+            }
+        }
+
+        return out.toString();
+    }
+
+    private String callGemini(String apiKey, String model, int timeoutSeconds, String userText) throws Exception
+    {
+        JsonObject body = new JsonObject();
+        JsonObject system = new JsonObject();
+        JsonArray systemParts = new JsonArray();
+        JsonObject systemPart = new JsonObject();
+        systemPart.addProperty("text", SYSTEM);
+        systemParts.add(systemPart);
+        system.add("parts", systemParts);
+        body.add("systemInstruction", system);
+
+        JsonArray contents = new JsonArray();
+        JsonObject content = new JsonObject();
+        content.addProperty("role", "user");
+        JsonArray parts = new JsonArray();
+        JsonObject part = new JsonObject();
+        part.addProperty("text", userText);
+        parts.add(part);
+        content.add("parts", parts);
+        contents.add(content);
+        body.add("contents", contents);
+
+        JsonObject generation = new JsonObject();
+        generation.addProperty("maxOutputTokens", 2500);
+        generation.addProperty("temperature", 0.1);
+        generation.addProperty("responseMimeType", "application/json");
+        body.add("generationConfig", generation);
+
+        HttpRequest request = HttpRequest.newBuilder(URI.create("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent"))
+            .timeout(Duration.ofSeconds(Math.max(3, timeoutSeconds)))
+            .header("x-goog-api-key", apiKey)
+            .header("content-type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+            .build();
+        HttpResponse<String> response = this.http.send(request, HttpResponse.BodyHandlers.ofString());
+        this.requireOk(response);
+        JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+        StringBuilder out = new StringBuilder();
+
+        if (root.has("candidates") && root.getAsJsonArray("candidates").size() > 0)
+        {
+            JsonObject candidate = root.getAsJsonArray("candidates").get(0).getAsJsonObject();
+
+            if (candidate.has("content") && candidate.getAsJsonObject("content").has("parts"))
+            {
+                for (JsonElement element : candidate.getAsJsonObject("content").getAsJsonArray("parts"))
+                {
+                    JsonObject p = element.getAsJsonObject();
+
+                    if (p.has("text") && !(p.has("thought") && p.get("thought").getAsBoolean()))
+                    {
+                        out.append(p.get("text").getAsString());
+                    }
+                }
+            }
+        }
+
+        return out.toString();
+    }
+
+    private void requireOk(HttpResponse<String> response)
+    {
+        if (response.statusCode() != 200)
+        {
+            String text = response.body() == null ? "" : response.body();
+            throw new IllegalStateException("HTTP " + response.statusCode() + " " + (text.length() > 200 ? text.substring(0, 200) : text));
         }
     }
 
