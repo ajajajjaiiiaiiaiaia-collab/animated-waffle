@@ -108,6 +108,16 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int reviewTimeout;
     private long reviewCooldownMs;
     private boolean reviewPunishOnFailure;
+    private boolean reviewPrimary;
+    private long primaryCooldownMs;
+    private int primaryConfirmations;
+    private long primaryWindowMs;
+    private final List<String> primaryCommands = new ArrayList<>();
+    private double gateOff;
+    private int gateSnaps;
+    private int gateCps;
+    private double gateReach;
+    private double gateInstant;
 
     /** One tier of the punish ladder. */
     private record PunishAction(double vl, List<String> commands)
@@ -248,6 +258,17 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.reviewTimeout = Math.max(3, c.getInt("review.timeout-seconds", 12));
         this.reviewCooldownMs = Math.max(0, c.getInt("review.cooldown-seconds", 20)) * 1000L;
         this.reviewPunishOnFailure = "punish".equalsIgnoreCase(c.getString("review.on-failure", "alert"));
+        this.reviewPrimary = "primary".equalsIgnoreCase(c.getString("review.mode", "confirm"));
+        this.primaryCooldownMs = Math.max(5, c.getInt("review.primary.cooldown-seconds", 30)) * 1000L;
+        this.primaryConfirmations = Math.max(1, c.getInt("review.primary.confirmations", 1));
+        this.primaryWindowMs = Math.max(10, c.getInt("review.primary.confirm-window-seconds", 180)) * 1000L;
+        this.primaryCommands.clear();
+        this.primaryCommands.addAll(c.getStringList("review.primary.commands"));
+        this.gateOff = c.getDouble("review.primary.gate.off-crosshair-ratio", 0.4);
+        this.gateSnaps = Math.max(1, c.getInt("review.primary.gate.snap-attacks", 2));
+        this.gateCps = Math.max(5, c.getInt("review.primary.gate.cps", 18));
+        this.gateReach = c.getDouble("review.primary.gate.reach", 3.6);
+        this.gateInstant = c.getDouble("review.primary.gate.instant-ratio", 0.6);
     }
 
     private PlayerState state(Player player)
@@ -710,6 +731,143 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         while (state.attackLog.size() > 40)
         {
             state.attackLog.pollFirst();
+        }
+
+        this.maybeScreen(attacker, state);
+    }
+
+    /**
+     * AI-primary mode: loose, cheap gates decide whether a fight looks suspicious at all.
+     * Only then is the AI asked, so ordinary fights cost nothing. The AI decides, not the VL.
+     */
+    private void maybeScreen(Player player, PlayerState state)
+    {
+        if (!this.reviewEnabled || !this.reviewPrimary || state.reviewPending || this.apiKey().isEmpty())
+        {
+            return;
+        }
+
+        long ms = System.currentTimeMillis();
+
+        if (ms - state.lastScreenMillis < this.primaryCooldownMs || ms - state.lastScreenCheck < 1000L)
+        {
+            return;
+        }
+
+        state.lastScreenCheck = ms;
+
+        if (state.attackLog.size() < 4 || this.skipReason(player) != null)
+        {
+            return;
+        }
+
+        JsonObject st = Evidence.stats(state.frames, state.attackLog);
+        int n = st.get("attacks_recorded").getAsInt();
+        double offFraction = st.get("attacks_off_victim_server_ray").getAsDouble() / n;
+        int instant = 0;
+
+        for (Evidence.AttackRec attack : state.attackLog)
+        {
+            if (attack.onCrosshair() && attack.reaction() <= this.instantTicks)
+            {
+                instant++;
+            }
+        }
+
+        List<String> why = new ArrayList<>();
+
+        if (offFraction >= this.gateOff)
+        {
+            why.add("off-crosshair " + Math.round(offFraction * 100.0) + "%");
+        }
+
+        if (st.get("attacks_after_fast_snap_that_ended_on_target").getAsInt() >= this.gateSnaps)
+        {
+            why.add("fast snaps onto target");
+        }
+
+        if (st.get("max_cps").getAsInt() >= this.gateCps)
+        {
+            why.add("CPS " + st.get("max_cps").getAsInt());
+        }
+
+        if (st.get("max_attack_distance").getAsDouble() > this.gateReach)
+        {
+            why.add("distance " + st.get("max_attack_distance").getAsDouble());
+        }
+
+        if ((double)instant / n >= this.gateInstant && st.get("avg_mouse_still_ms_before_hit").getAsDouble() >= this.passiveMs)
+        {
+            why.add("instant hits with still mouse");
+        }
+
+        if (why.isEmpty())
+        {
+            return;
+        }
+
+        state.reviewPending = true;
+        state.lastScreenMillis = ms;
+        state.lastReviewMillis = ms;
+        String name = player.getName();
+        String evidence = this.buildEvidence(player, state, "ai-screen", String.join(", ", why)).toString();
+
+        Bukkit.getScheduler().runTaskAsynchronously(this, () ->
+        {
+            AiReviewer.Verdict verdict = this.reviewer.review(this.reviewProvider, this.apiKey(), this.reviewModel, this.reviewTimeout, evidence);
+            Bukkit.getScheduler().runTask(this, () -> this.finishScreen(name, state, verdict));
+        });
+    }
+
+    private void finishScreen(String name, PlayerState state, AiReviewer.Verdict verdict)
+    {
+        state.reviewPending = false;
+        String reasons = String.join("; ", verdict.reasons());
+        this.writeLog(name + " AI screen: verdict=" + verdict.verdict() + " confidence=" + verdict.confidence() + " type=" + verdict.cheatType() + " error=" + verdict.error() + " reasons=" + reasons);
+
+        if (verdict.error() != null)
+        {
+            return;
+        }
+
+        long ms = System.currentTimeMillis();
+
+        if (ms - state.lastAiHitMillis > this.primaryWindowMs)
+        {
+            state.aiHits = 0;
+        }
+
+        if (!"cheating".equalsIgnoreCase(verdict.verdict()) || verdict.confidence() < this.reviewMinConfidence)
+        {
+            return;
+        }
+
+        state.aiHits++;
+        state.lastAiHitMillis = ms;
+        String summary = "&f" + name + " &8| &7AI &f" + verdict.verdict() + " &8| &7confidence &f" + Math.round(verdict.confidence() * 100.0) + "% &8| &7type &f" + verdict.cheatType() + " &8| &7" + reasons;
+
+        if (state.aiHits < this.primaryConfirmations)
+        {
+            this.alertStaff("&eAI suspects (" + state.aiHits + "/" + this.primaryConfirmations + "), checking again soon: " + summary);
+            state.lastScreenMillis = ms - this.primaryCooldownMs + 8000L;
+            return;
+        }
+
+        Player online = Bukkit.getPlayerExact(name);
+
+        if (online != null && this.evidenceEnabled)
+        {
+            this.saveEvidence(online, state, "ai-ban", reasons);
+        }
+
+        this.alertStaff("&aAI banned: " + summary);
+        state.aiHits = 0;
+
+        for (String command : this.primaryCommands)
+        {
+            String ready = command.replace("%player%", name).replace("%vl%", "0");
+            this.writeLog(name + " running AI action: " + ready);
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), ready);
         }
     }
 

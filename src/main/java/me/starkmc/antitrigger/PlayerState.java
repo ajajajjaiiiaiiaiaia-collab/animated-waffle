@@ -31,6 +31,10 @@ final class PlayerState
     UUID focus;
     int focusUntil;
     boolean reviewPending;
+    long lastScreenCheck;
+    long lastScreenMillis;
+    int aiHits;
+    long lastAiHitMillis;
     long lastReviewMillis;
 
     void click(int nowTick)

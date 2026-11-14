@@ -70,6 +70,9 @@ evidence:
 # Test it without punishing anyone:  /antitrigger review <player>
 review:
   enabled: false
+  # confirm = the AI only double-checks before a punish action (VL ladder above).
+  # primary = the AI ALSO screens suspicious fights on its own and can punish without any VL (settings below).
+  mode: primary
   provider: gemini        # gemini or anthropic
   api-key: ""
   model: ""               # empty = default for the provider (gemini-3.6-flash / claude-sonnet-5-5)
@@ -77,6 +80,19 @@ review:
   timeout-seconds: 12
   cooldown-seconds: 20    # minimum time between two reviews of the same player
   on-failure: alert       # alert = no punishment if the AI cannot be reached, punish = run the action anyway
+  primary:
+    cooldown-seconds: 30        # minimum time between two screenings of the same player
+    confirmations: 1            # the AI must say "cheating" this many times (within confirm-window-seconds) before the ban
+    confirm-window-seconds: 180
+    commands:
+      - "tempban %player% 1d Hacks (AI)"
+    # A fight is only sent to the AI if ONE of these loose gates trips (so normal fights cost nothing):
+    gate:
+      off-crosshair-ratio: 0.4  # share of attacks away from the crosshair
+      snap-attacks: 2           # attacks right after a fast rotation that ended exactly on the target
+      cps: 18                   # clicks per second
+      reach: 3.6                # blocks
+      instant-ratio: 0.6        # share of instant hits (together with a still mouse)
 
 packetevents:
   enabled: true           # use PacketEvents (if installed) for millisecond-accurate mouse-movement timing
