@@ -72,7 +72,7 @@ review:
   enabled: false
   provider: gemini        # gemini or anthropic
   api-key: ""
-  model: ""               # empty = default for the provider (gemini-3.8-flash / claude-sonnet-5-5)
+  model: ""               # empty = default for the provider (gemini-3.6-flash / claude-sonnet-5-5)
   min-confidence: 0.85
   timeout-seconds: 12
   cooldown-seconds: 20    # minimum time between two reviews of the same player

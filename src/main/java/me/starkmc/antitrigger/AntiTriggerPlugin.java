@@ -243,7 +243,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.reviewApiKey = c.getString("review.api-key", "");
         this.reviewProvider = "gemini".equalsIgnoreCase(c.getString("review.provider", "anthropic")) ? "gemini" : "anthropic";
         String configuredModel = c.getString("review.model", "");
-        this.reviewModel = configuredModel == null || configuredModel.isBlank() ? ("gemini".equals(this.reviewProvider) ? "gemini-3.8-flash" : "claude-sonnet-5-5") : configuredModel.trim();
+        this.reviewModel = configuredModel == null || configuredModel.isBlank() ? ("gemini".equals(this.reviewProvider) ? "gemini-3.6-flash" : "claude-sonnet-5-5") : configuredModel.trim();
         this.reviewMinConfidence = c.getDouble("review.min-confidence", 0.85);
         this.reviewTimeout = Math.max(3, c.getInt("review.timeout-seconds", 12));
         this.reviewCooldownMs = Math.max(0, c.getInt("review.cooldown-seconds", 20)) * 1000L;
