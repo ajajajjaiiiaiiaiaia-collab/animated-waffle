@@ -49,6 +49,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     /** Last time (ms) each player moved the mouse. Written by PacketEvents (netty threads) or by the tick task. */
     private final Map<UUID, Long> lastRotation = new ConcurrentHashMap<>();
     private PacketHook packetHook;
+    private final Set<UUID> debugTargets = new HashSet<>();
     private final LegacyComponentSerializer legacy = LegacyComponentSerializer.legacyAmpersand();
 
     // settings
@@ -277,47 +278,82 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         int now = Bukkit.getCurrentTick();
         state.lastAttackTick = now;
 
-        if (!this.canBeJudged(attacker))
+        String skip = this.skipReason(attacker);
+
+        if (skip != null)
         {
+            this.debug(attacker, "hit ignored: " + skip);
             return;
         }
 
         // Only judge hits where our own look-ray agrees the crosshair was on the victim.
         if (!victim.getUniqueId().equals(state.target) || state.onTargetTicks < 1)
         {
+            this.debug(attacker, "hit ignored: server look-ray was not on " + victim.getName() + " (lag or hitbox mismatch)");
             return;
         }
 
         long sinceRotation = System.currentTimeMillis() - this.lastRotation.getOrDefault(attacker.getUniqueId(), 0L);
         state.samples.addLast(new PlayerState.Sample(state.onTargetTicks, now, sinceRotation >= this.passiveMs));
+        this.debug(attacker, "hit on " + victim.getName() + ": crosshair on target for " + state.onTargetTicks + " tick(s) (instant if <= " + this.instantTicks + "), mouse still for " + sinceRotation + "ms (passive if >= " + this.passiveMs + "), air swings in window " + state.airSwings.size());
         state.trim(now, this.windowTicks, this.windowSize);
         this.evaluate(attacker, state);
     }
 
-    private boolean canBeJudged(Player player)
+    /** Returns why a player's hits are not judged, or null when they are. */
+    private String skipReason(Player player)
     {
         if (player.hasPermission(this.bypassPermission))
         {
-            return false;
+            return "player has the bypass permission (" + this.bypassPermission + "); a '*' permission also grants it";
         }
 
         if (!this.bedrockPrefix.isEmpty() && player.getName().startsWith(this.bedrockPrefix))
         {
-            return false;
+            return "Bedrock name prefix";
         }
 
         if (player.getPing() > this.maxPing)
         {
-            return false;
+            return "ping " + player.getPing() + "ms is above max-ping " + this.maxPing;
         }
 
-        return Bukkit.getTPS()[0] >= this.minTps;
+        double tps = Bukkit.getTPS()[0];
+
+        if (tps < this.minTps)
+        {
+            return "server TPS " + String.format(Locale.ROOT, "%.1f", tps) + " is below min-tps " + this.minTps;
+        }
+
+        return null;
+    }
+
+    /** Sends a diagnostic line to staff (and console) when /antitrigger debug is on for this player. */
+    private void debug(Player target, String text)
+    {
+        if (this.debugTargets.isEmpty() || !this.debugTargets.contains(target.getUniqueId()))
+        {
+            return;
+        }
+
+        Component message = this.legacy.deserialize("&8[AT-debug] &7" + target.getName() + ": &f" + text);
+
+        for (Player staff : Bukkit.getOnlinePlayers())
+        {
+            if (staff.hasPermission("antitrigger.alerts") && !this.alertsOff.contains(staff.getUniqueId()))
+            {
+                staff.sendMessage(message);
+            }
+        }
+
+        Bukkit.getConsoleSender().sendMessage(message);
     }
 
     private void evaluate(Player player, PlayerState state)
     {
         if (state.samples.size() < this.minSamples)
         {
+            this.debug(player, "collecting hits: " + state.samples.size() + "/" + this.minSamples);
             return;
         }
 
@@ -349,6 +385,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
                 air++;
             }
         }
+
+        this.debug(player, "window: instant " + instant + "/" + state.samples.size() + " (" + Math.round(ratio * 100.0) + "%, need " + Math.round(this.minInstantRatio * 100.0) + "%), passive " + passive + "/" + state.samples.size() + " (" + Math.round(passiveRatio * 100.0) + "%, need " + (this.requirePassive ? Math.round(this.minPassiveRatio * 100.0) + "%" : "off") + "), air swings " + air + " (max " + this.maxAirSwings + ")");
 
         // All signals together: near-instant hits, almost no swings at nothing, and (optionally) a still mouse.
         if (ratio >= this.minInstantRatio && air <= this.maxAirSwings && (!this.requirePassive || passiveRatio >= this.minPassiveRatio))
@@ -432,6 +470,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     public void onQuit(PlayerQuitEvent event)
     {
         this.states.remove(event.getPlayer().getUniqueId());
+        this.debugTargets.remove(event.getPlayer().getUniqueId());
         this.lastRotation.remove(event.getPlayer().getUniqueId());
     }
 
@@ -493,13 +532,33 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
                 sender.sendMessage(this.legacy.deserialize(this.prefix + "&7Reset data of &f" + target.getName()));
                 return true;
             }
+            case "debug":
+            {
+                Player target = args.length > 1 ? Bukkit.getPlayerExact(args[1]) : null;
+
+                if (target == null)
+                {
+                    sender.sendMessage(this.legacy.deserialize("&cUsage: /antitrigger debug <online player>"));
+                    return true;
+                }
+
+                boolean on = this.debugTargets.add(target.getUniqueId());
+
+                if (!on)
+                {
+                    this.debugTargets.remove(target.getUniqueId());
+                }
+
+                sender.sendMessage(this.legacy.deserialize(this.prefix + "&7Debug for &f" + target.getName() + " " + (on ? "&aON &7(every hit is explained to staff with alerts on)" : "&cOFF")));
+                return true;
+            }
             case "reload":
                 this.loadSettings();
                 this.hookPacketEvents();
                 sender.sendMessage(this.legacy.deserialize(this.prefix + "&aReloaded. Mouse timing: " + (this.packetHook != null ? "PacketEvents" : "tick-based")));
                 return true;
             default:
-                sender.sendMessage(this.legacy.deserialize("&cUsage: /antitrigger <alerts|info <player>|reset <player>|reload>"));
+                sender.sendMessage(this.legacy.deserialize("&cUsage: /antitrigger <alerts|info <player>|reset <player>|debug <player>|reload>"));
                 return true;
         }
     }
@@ -516,7 +575,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         if (args.length == 1)
         {
-            for (String s : List.of("alerts", "info", "reset", "reload"))
+            for (String s : List.of("alerts", "info", "reset", "debug", "reload"))
             {
                 if (s.startsWith(args[0].toLowerCase(Locale.ROOT)))
                 {
@@ -524,7 +583,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
                 }
             }
         }
-        else if (args.length == 2 && (args[0].equalsIgnoreCase("info") || args[0].equalsIgnoreCase("reset")))
+        else if (args.length == 2 && (args[0].equalsIgnoreCase("info") || args[0].equalsIgnoreCase("reset") || args[0].equalsIgnoreCase("debug")))
         {
             for (Player p : Bukkit.getOnlinePlayers())
             {
