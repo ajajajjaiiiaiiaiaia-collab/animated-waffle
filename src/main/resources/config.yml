@@ -1,4 +1,4 @@
-# AntiTrigger 1.3 - triggerbot + off-crosshair hit detection.
+# AntiTrigger 1.4 - triggerbot + off-crosshair detection, evidence files and optional AI review before a punishment.
 #
 # A triggerbot attacks the instant the crosshair touches an enemy, WITHOUT the player moving the mouse,
 # and (unlike a human) almost never swings at nothing. A window of hits is flagged only when all the
@@ -53,6 +53,29 @@ offtarget:
   ray-size: 0.5           # extra-wide hitbox used to decide "off"; bigger = fewer false flags
   grace-ticks: 3          # the crosshair counts as on-target if it touched the victim this recently (1 tick = 50ms)
   vl: 1.0                 # VL added per flag; the punish ladder above applies
+
+# Evidence: the last few seconds of every player are kept in memory (per tick: rotation, rotation speed, target,
+# distance, angle error between the crosshair and the target; per attack: distance, angle error, mouse-still ms, CPS ...).
+# When a flag alerts staff, it is saved as plugins/AntiTrigger/evidence/<player>_<time>_<type>.json.
+evidence:
+  enabled: true
+  seconds: 6              # 2 to 10
+  save-on-alert: true
+  folder: evidence
+  keep-files: 300         # oldest files are deleted beyond this
+
+# AI review: before a punish action runs, the evidence is sent to the Anthropic API for a second opinion.
+# The action only runs if the AI says "cheating" with at least min-confidence. Otherwise staff get the AI's reasons.
+# Needs an API key: put it here or in the ANTHROPIC_API_KEY environment variable. Keep this file private.
+# Test it without punishing anyone:  /antitrigger review <player>
+review:
+  enabled: false
+  api-key: ""
+  model: "claude-sonnet-5-5"
+  min-confidence: 0.85
+  timeout-seconds: 12
+  cooldown-seconds: 20    # minimum time between two reviews of the same player
+  on-failure: alert       # alert = no punishment if the AI cannot be reached, punish = run the action anyway
 
 packetevents:
   enabled: true           # use PacketEvents (if installed) for millisecond-accurate mouse-movement timing

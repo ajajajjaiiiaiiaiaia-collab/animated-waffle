@@ -23,6 +23,46 @@ final class PlayerState
     UUID seenVictim;
     int seenTick = -1000;
 
+    /** Evidence recording: last few seconds, per tick and per attack. */
+    final ArrayDeque<Evidence.Frame> frames = new ArrayDeque<>();
+    final ArrayDeque<Evidence.AttackRec> attackLog = new ArrayDeque<>();
+    final ArrayDeque<Integer> clicks = new ArrayDeque<>();
+    final java.util.List<String> flagHistory = new java.util.ArrayList<>();
+    UUID focus;
+    int focusUntil;
+    boolean reviewPending;
+    long lastReviewMillis;
+
+    void click(int nowTick)
+    {
+        this.clicks.addLast(nowTick);
+
+        while (!this.clicks.isEmpty() && nowTick - this.clicks.peekFirst() > 20)
+        {
+            this.clicks.pollFirst();
+        }
+    }
+
+    int cps(int nowTick)
+    {
+        while (!this.clicks.isEmpty() && nowTick - this.clicks.peekFirst() > 20)
+        {
+            this.clicks.pollFirst();
+        }
+
+        return this.clicks.size();
+    }
+
+    void addHistory(String entry)
+    {
+        this.flagHistory.add(entry);
+
+        while (this.flagHistory.size() > 30)
+        {
+            this.flagHistory.remove(0);
+        }
+    }
+
     UUID target;
     int onTargetTicks;
     int lastAttackTick = -1000;
