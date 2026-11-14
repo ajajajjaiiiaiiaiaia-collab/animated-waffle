@@ -1213,21 +1213,49 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
                 sender.sendMessage(this.legacy.deserialize(this.prefix + "&7Sending a test request..."));
                 String testEvidence = "{\"connectivity_test\":true,\"instruction\":\"There is no real player. Reply only with verdict uncertain, confidence 0, cheat_type none and reasons [\\\"api ok\\\"].\"}";
-                long started = System.currentTimeMillis();
+                String provider = this.reviewProvider;
+                String model = this.reviewModel;
+                int timeout = this.reviewTimeout;
 
                 Bukkit.getScheduler().runTaskAsynchronously(this, () ->
                 {
-                    AiReviewer.Verdict v = this.reviewer.review(this.reviewProvider, key, this.reviewModel, this.reviewTimeout, testEvidence);
-                    long took = System.currentTimeMillis() - started;
+                    long t0 = System.currentTimeMillis();
+                    boolean ok1;
+                    String step1;
+
+                    try
+                    {
+                        AiReviewer.Check check = this.reviewer.checkAccess(provider, key, model, 10);
+                        ok1 = true;
+                        step1 = "&a\u2714 step 1: key and network OK (" + (System.currentTimeMillis() - t0) + "ms, " + check.count() + " models listed, model '" + model + "' " + (check.modelFound() ? "found" : "NOT in the list - check review.model") + ")";
+                    }
+                    catch (Exception ex)
+                    {
+                        ok1 = false;
+                        step1 = "&c\u2716 step 1 failed after " + (System.currentTimeMillis() - t0) + "ms (key or network): " + ex.getClass().getSimpleName() + ": " + ex.getMessage();
+                    }
+
+                    String line1 = step1;
+                    boolean proceed = ok1;
+                    Bukkit.getScheduler().runTask(this, () -> sender.sendMessage(this.legacy.deserialize(this.prefix + line1)));
+
+                    if (!proceed)
+                    {
+                        return;
+                    }
+
+                    long t1 = System.currentTimeMillis();
+                    AiReviewer.Verdict v = this.reviewer.review(provider, key, model, timeout, testEvidence);
+                    long took = System.currentTimeMillis() - t1;
                     Bukkit.getScheduler().runTask(this, () ->
                     {
                         if (v.error() != null)
                         {
-                            sender.sendMessage(this.legacy.deserialize(this.prefix + "&c\u2716 API test FAILED after " + took + "ms: " + v.error()));
+                            sender.sendMessage(this.legacy.deserialize(this.prefix + "&c\u2716 step 2 (real request) FAILED after " + took + "ms: " + v.error()));
                             return;
                         }
 
-                        sender.sendMessage(this.legacy.deserialize(this.prefix + "&a\u2714 API works &8| &7replied in &f" + took + "ms &8| &7verdict &f" + v.verdict() + " &8| &7" + String.join("; ", v.reasons())));
+                        sender.sendMessage(this.legacy.deserialize(this.prefix + "&a\u2714 step 2: API works &8| &7replied in &f" + took + "ms &8| &7verdict &f" + v.verdict() + " &8| &7" + String.join("; ", v.reasons())));
                     });
                 });
                 return true;

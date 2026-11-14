@@ -190,6 +190,55 @@ final class AiReviewer
         }
     }
 
+    record Check(int count, boolean modelFound)
+    {
+    }
+
+    /** Cheap request that only lists models: proves the key and the network work, and that the model name exists. */
+    Check checkAccess(String provider, String apiKey, String model, int timeoutSeconds) throws Exception
+    {
+        HttpRequest request;
+
+        if ("gemini".equals(provider))
+        {
+            request = HttpRequest.newBuilder(URI.create("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200"))
+                .timeout(Duration.ofSeconds(Math.max(3, timeoutSeconds)))
+                .header("x-goog-api-key", apiKey)
+                .GET()
+                .build();
+        }
+        else
+        {
+            request = HttpRequest.newBuilder(URI.create("https://api.anthropic.com/v1/models?limit=200"))
+                .timeout(Duration.ofSeconds(Math.max(3, timeoutSeconds)))
+                .header("x-api-key", apiKey)
+                .header("anthropic-version", "2023-06-01")
+                .GET()
+                .build();
+        }
+
+        HttpResponse<String> response = this.http.send(request, HttpResponse.BodyHandlers.ofString());
+        this.requireOk(response);
+        JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+        JsonArray list = root.has("models") ? root.getAsJsonArray("models") : root.has("data") ? root.getAsJsonArray("data") : new JsonArray();
+        int count = 0;
+        boolean found = false;
+
+        for (JsonElement element : list)
+        {
+            JsonObject o = element.getAsJsonObject();
+            String id = o.has("name") ? o.get("name").getAsString() : o.has("id") ? o.get("id").getAsString() : "";
+            count++;
+
+            if (id.equals(model) || id.equals("models/" + model))
+            {
+                found = true;
+            }
+        }
+
+        return new Check(count, found);
+    }
+
     private static Verdict failure(String error)
     {
         return new Verdict("uncertain", 0.0, "none", List.of(), error);
