@@ -1391,10 +1391,26 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         for (String command : this.primaryCommands)
         {
-            String ready = command.replace("%player%", name).replace("%vl%", "0");
+            String ready = command.replace("%player%", name).replace("%vl%", "0").replace("%type%", this.cheatLabel(verdict.cheatType()));
             this.writeLog(name + " running AI action: " + ready);
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), ready);
         }
+    }
+
+    /** The cheat name for a ban reason. Anything unknown becomes the neutral "Hacks". */
+    private String cheatLabel(String type)
+    {
+        String t = type == null ? "" : type.toLowerCase(Locale.ROOT);
+
+        return switch (t)
+        {
+            case "triggerbot" -> "Triggerbot";
+            case "killaura" -> "Killaura";
+            case "aim_assist" -> "AimAssist";
+            case "autoclicker" -> "Autoclicker";
+            case "reach" -> "Reach";
+            default -> "Hacks";
+        };
     }
 
     private JsonObject buildEvidence(Player player, PlayerState state, String type, String detail)

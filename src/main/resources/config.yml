@@ -121,7 +121,7 @@ review:
     confirmations: 1            # the AI must say "cheating" this many times (within confirm-window-seconds) before the ban
     confirm-window-seconds: 180
     commands:
-      - "tempban %player% 1d Hacks (AI)"
+      - "tempban %player% 1d %type%"
     # A fight is only sent to the AI if ONE of these loose gates trips (so normal fights cost nothing):
     gate:
       off-crosshair-ratio: 0.4  # share of attacks away from the crosshair
