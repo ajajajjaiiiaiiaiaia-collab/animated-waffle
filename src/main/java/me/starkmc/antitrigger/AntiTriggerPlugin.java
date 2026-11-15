@@ -1195,6 +1195,19 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
+        Player stillThere = Bukkit.getPlayerExact(name);
+
+        if (stillThere != null)
+        {
+            String skip = this.skipReason(stillThere);
+
+            if (skip != null)
+            {
+                this.writeLog(name + " AI verdict dropped, conditions changed: " + skip);
+                return;
+            }
+        }
+
         state.aiHits++;
         state.lastAiHitMillis = ms;
         String summary = "&f" + name + " &8| &7AI &f" + verdict.verdict() + " &8| &7confidence &f" + Math.round(verdict.confidence() * 100.0) + "% &8| &7type &f" + verdict.cheatType() + " &8| &7" + reasons;

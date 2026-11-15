@@ -66,6 +66,13 @@ final class AiReviewer
             JsonObject v = JsonParser.parseString(reply.substring(from, to + 1)).getAsJsonObject();
             String verdict = v.has("verdict") ? v.get("verdict").getAsString() : "uncertain";
             double confidence = v.has("confidence") ? v.get("confidence").getAsDouble() : 0.0;
+
+            if (confidence > 1.0 && confidence <= 100.0)
+            {
+                confidence = confidence / 100.0;
+            }
+
+            confidence = Math.max(0.0, Math.min(1.0, confidence));
             String type = v.has("cheat_type") ? v.get("cheat_type").getAsString() : "none";
             List<String> reasons = new ArrayList<>();
 
