@@ -459,6 +459,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
      */
     private void recordAttempt(Player attacker, PlayerState state, Player victim, int now, boolean onTarget)
     {
+        if (Evidence.aim(attacker.getEyeLocation(), victim)[0] < Evidence.MIN_RELIABLE_DISTANCE)
+        {
+            this.debug(attacker, "attack on " + victim.getName() + " not counted for off-target: closer than " + Evidence.MIN_RELIABLE_DISTANCE + " blocks, the aim angle is meaningless there");
+            return;
+        }
+
         boolean on = onTarget || (victim.getUniqueId().equals(state.seenVictim) && now - state.seenTick <= this.offGraceTicks) || this.wideRayHits(attacker, victim);
 
         state.attempts.addLast(new PlayerState.Attempt(now, !on));
