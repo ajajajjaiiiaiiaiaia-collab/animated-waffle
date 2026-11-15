@@ -34,7 +34,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerAnimationEvent;
+import org.bukkit.Material;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerAnimationType;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.RayTraceResult;
@@ -119,6 +123,20 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int gateCps;
     private double gateReach;
     private double gateInstant;
+
+    // ElytraTarget check
+    private boolean elytraEnabled;
+    private double elytraMaxDistance;
+    private double elytraLockAngle;
+    private int elytraLockTicks;
+    private int elytraBoostCount;
+    private int elytraWindowTicks;
+    private double elytraMaxStd;
+    private double elytraMaxMean;
+    private int elytraSwapCycles;
+    private double elytraVl;
+    private int elytraCooldownTicks;
+    private String elytraAlertFormat;
 
     /** One tier of the punish ladder. */
     private record PunishAction(double vl, List<String> commands)
@@ -271,6 +289,18 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.gateCps = Math.max(5, c.getInt("review.primary.gate.cps", 18));
         this.gateReach = c.getDouble("review.primary.gate.reach", 3.6);
         this.gateInstant = c.getDouble("review.primary.gate.instant-ratio", 0.6);
+        this.elytraEnabled = c.getBoolean("elytratarget.enabled", true);
+        this.elytraMaxDistance = Math.max(10.0, c.getDouble("elytratarget.max-distance", 100.0));
+        this.elytraLockAngle = Math.max(1.0, c.getDouble("elytratarget.lock-angle", 6.0));
+        this.elytraLockTicks = Math.max(5, c.getInt("elytratarget.lock-ticks", 20));
+        this.elytraBoostCount = Math.max(3, c.getInt("elytratarget.boost-count", 4));
+        this.elytraWindowTicks = Math.max(40, c.getInt("elytratarget.window-seconds", 8) * 20);
+        this.elytraMaxStd = Math.max(0.2, c.getDouble("elytratarget.max-stddev-ticks", 1.5));
+        this.elytraMaxMean = Math.max(4.0, c.getDouble("elytratarget.max-mean-ticks", 18.0));
+        this.elytraSwapCycles = Math.max(2, c.getInt("elytratarget.swap-cycles", 3));
+        this.elytraVl = c.getDouble("elytratarget.vl", 2.0);
+        this.elytraCooldownTicks = Math.max(20, c.getInt("elytratarget.cooldown-seconds", 10) * 20);
+        this.elytraAlertFormat = c.getString("messages.elytra-alert", "&f%player% &7ElytraTarget &8| &7rockets &f%boosts% &8(every &f%mean% &8ticks, &7+-&f%sd%&8) &8| &7swap cycles &f%swaps% &8| &7aim lock &f%lock% &8| &7VL &f%vl% &8| &7ping &f%ping%ms");
     }
 
     private PlayerState state(Player player)
@@ -325,6 +355,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
 
             this.recordFrame(player, state, eye, dYaw, dPitch, hit);
+            this.trackElytra(player, state, eye);
         }
     }
 
@@ -738,6 +769,269 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.maybeScreen(attacker, state);
     }
 
+    /** Every tick while gliding: how long has the crosshair stayed on the nearest player? ElytraTarget locks on automatically. */
+    private void trackElytra(Player player, PlayerState state, Location eye)
+    {
+        if (!this.elytraEnabled)
+        {
+            return;
+        }
+
+        if (!player.isGliding())
+        {
+            state.lockTicks = 0;
+            state.lockMiss = 0;
+            return;
+        }
+
+        Player nearest = null;
+        double best = this.elytraMaxDistance * this.elytraMaxDistance;
+
+        for (Player other : player.getWorld().getPlayers())
+        {
+            if (other.equals(player) || other.isDead() || other.getGameMode() == GameMode.SPECTATOR)
+            {
+                continue;
+            }
+
+            double d = other.getLocation().distanceSquared(player.getLocation());
+
+            if (d < best)
+            {
+                best = d;
+                nearest = other;
+            }
+        }
+
+        if (nearest == null)
+        {
+            state.lockTicks = 0;
+            state.lockMiss = 0;
+            return;
+        }
+
+        double[] aim = Evidence.aim(eye, nearest);
+        state.elytraTarget = nearest.getName();
+        state.elytraDist = aim[0];
+        state.elytraAngle = aim[1];
+
+        if (aim[1] <= this.elytraLockAngle)
+        {
+            state.lockTicks++;
+            state.lockMiss = 0;
+
+            if (state.lockTicks >= this.elytraLockTicks)
+            {
+                state.lastLockTick = Bukkit.getCurrentTick();
+            }
+        }
+        else if (++state.lockMiss > 2)
+        {
+            state.lockTicks = 0;
+        }
+    }
+
+    /** A firework rocket used while gliding. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRocket(PlayerInteractEvent event)
+    {
+        if (!this.elytraEnabled)
+        {
+            return;
+        }
+
+        Action action = event.getAction();
+
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK)
+        {
+            return;
+        }
+
+        if (event.getItem() == null || event.getItem().getType() != Material.FIREWORK_ROCKET)
+        {
+            return;
+        }
+
+        Player player = event.getPlayer();
+
+        if (!player.isGliding())
+        {
+            return;
+        }
+
+        PlayerState state = this.state(player);
+        int now = Bukkit.getCurrentTick();
+        state.boosts.addLast(now);
+        this.evaluateElytra(player, state, now);
+    }
+
+    /** Slot swap -> rocket -> swap back within a few ticks is ElytraTarget's visible firework routine. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onSlotChange(PlayerItemHeldEvent event)
+    {
+        if (!this.elytraEnabled)
+        {
+            return;
+        }
+
+        Player player = event.getPlayer();
+
+        if (!player.isGliding())
+        {
+            return;
+        }
+
+        PlayerState state = this.state(player);
+        int now = Bukkit.getCurrentTick();
+        Integer lastBoost = state.boosts.peekLast();
+
+        if (lastBoost != null && now - lastBoost >= 1 && now - lastBoost <= 8 && lastBoost - state.lastSwapTick >= 0 && lastBoost - state.lastSwapTick <= 6)
+        {
+            state.swapCycles.addLast(now);
+        }
+
+        state.lastSwapTick = now;
+        this.evaluateElytra(player, state, now);
+    }
+
+    private double[] boostStats(PlayerState state)
+    {
+        List<Integer> list = new ArrayList<>(state.boosts);
+
+        if (list.size() < 2)
+        {
+            return new double[] {list.size(), 0.0, 0.0};
+        }
+
+        int m = list.size() - 1;
+        double sum = 0.0;
+
+        for (int i = 0; i < m; i++)
+        {
+            sum += list.get(i + 1) - list.get(i);
+        }
+
+        double mean = sum / m;
+        double var = 0.0;
+
+        for (int i = 0; i < m; i++)
+        {
+            double diff = (list.get(i + 1) - list.get(i)) - mean;
+            var += diff * diff;
+        }
+
+        return new double[] {list.size(), mean, Math.sqrt(var / m)};
+    }
+
+    private void evaluateElytra(Player player, PlayerState state, int now)
+    {
+        while (!state.boosts.isEmpty() && now - state.boosts.peekFirst() > this.elytraWindowTicks)
+        {
+            state.boosts.pollFirst();
+        }
+
+        while (!state.swapCycles.isEmpty() && now - state.swapCycles.peekFirst() > this.elytraWindowTicks)
+        {
+            state.swapCycles.pollFirst();
+        }
+
+        if (now - state.lastElytraFlagTick < this.elytraCooldownTicks || this.skipReason(player) != null)
+        {
+            return;
+        }
+
+        double[] bs = this.boostStats(state);
+        boolean regular = bs[0] >= this.elytraBoostCount && bs[1] <= this.elytraMaxMean && bs[2] <= this.elytraMaxStd;
+        boolean swapPattern = state.swapCycles.size() >= this.elytraSwapCycles;
+        boolean lock = now - state.lastLockTick <= this.elytraWindowTicks;
+
+        if ((lock && (regular || swapPattern)) || (regular && swapPattern))
+        {
+            state.lastElytraFlagTick = now;
+            this.flagElytra(player, state, (int)bs[0], bs[1], bs[2], state.swapCycles.size(), lock);
+        }
+    }
+
+    private void flagElytra(Player player, PlayerState state, int boosts, double mean, double sd, int swaps, boolean lock)
+    {
+        state.refreshVl(this.decayPerMinute, this.resetAfterMillis);
+        state.vl += this.elytraVl;
+        state.totalFlags++;
+        state.lastFlagMillis = System.currentTimeMillis();
+
+        String vlText = String.format(Locale.ROOT, "%.1f", state.vl);
+        String meanText = String.format(Locale.ROOT, "%.1f", mean);
+        String sdText = String.format(Locale.ROOT, "%.1f", sd);
+        String line = this.elytraAlertFormat.replace("%player%", player.getName()).replace("%boosts%", String.valueOf(boosts)).replace("%mean%", meanText).replace("%sd%", sdText).replace("%swaps%", String.valueOf(swaps)).replace("%lock%", lock ? "yes" : "no").replace("%vl%", vlText).replace("%ping%", String.valueOf(player.getPing()));
+        this.writeLog(player.getName() + " vl=" + vlText + " ELYTRA-TARGET rockets=" + boosts + " mean=" + meanText + " sd=" + sdText + " swapCycles=" + swaps + " lock=" + lock + " ping=" + player.getPing());
+
+        if (state.vl >= this.alertVl)
+        {
+            this.alertStaff(line);
+        }
+
+        this.afterFlag(player, state, "elytratarget", "rockets=" + boosts + " mean=" + meanText + " sd=" + sdText + " swaps=" + swaps + " lock=" + lock);
+        this.elytraScreen(player, state, "elytra target pattern");
+
+        if (this.punishEnabled)
+        {
+            this.runPunishActions(player, state, vlText);
+        }
+    }
+
+    /** AI-primary mode: send an ElytraTarget flag straight to the AI. */
+    private void elytraScreen(Player player, PlayerState state, String why)
+    {
+        if (!this.reviewEnabled || !this.reviewPrimary || state.reviewPending || this.apiKey().isEmpty())
+        {
+            return;
+        }
+
+        long ms = System.currentTimeMillis();
+
+        if (ms - state.lastScreenMillis < this.primaryCooldownMs)
+        {
+            return;
+        }
+
+        state.reviewPending = true;
+        state.lastScreenMillis = ms;
+        state.lastReviewMillis = ms;
+        String name = player.getName();
+        String evidence = this.buildEvidence(player, state, "ai-screen", why).toString();
+
+        Bukkit.getScheduler().runTaskAsynchronously(this, () ->
+        {
+            AiReviewer.Verdict verdict = this.reviewer.review(this.reviewProvider, this.apiKey(), this.reviewModel, this.reviewTimeout, evidence);
+            Bukkit.getScheduler().runTask(this, () -> this.finishScreen(name, state, verdict));
+        });
+    }
+
+    private JsonObject elytraInfo(Player player, PlayerState state, int now)
+    {
+        JsonObject o = new JsonObject();
+        double[] bs = this.boostStats(state);
+        o.addProperty("gliding_now", player.isGliding());
+        o.addProperty("rockets_in_window", (int)bs[0]);
+        o.addProperty("rocket_interval_mean_ticks", Evidence.r(bs[1], 1));
+        o.addProperty("rocket_interval_stddev_ticks", Evidence.r(bs[2], 2));
+        o.addProperty("slot_swap_rocket_swap_cycles", state.swapCycles.size());
+        o.addProperty("aim_lock_ticks_now", state.lockTicks);
+        o.addProperty("aim_lock_reached_seconds_ago", state.lastLockTick < -1000 ? -1.0 : Evidence.r((now - state.lastLockTick) / 20.0, 1));
+        o.addProperty("nearest_player_while_gliding", state.elytraTarget == null ? "" : state.elytraTarget);
+        o.addProperty("nearest_distance", Evidence.r(state.elytraDist, 1));
+        o.addProperty("angle_to_nearest_deg", Evidence.r(state.elytraAngle, 1));
+        JsonArray ticks = new JsonArray();
+
+        for (int t : state.boosts)
+        {
+            ticks.add(Evidence.r((now - t) / 20.0, 2));
+        }
+
+        o.add("rocket_seconds_ago", ticks);
+        return o;
+    }
+
     /** Attacks that are recent enough to describe the current fight. */
     private List<Evidence.AttackRec> recentAttacks(PlayerState state, int nowTick)
     {
@@ -985,6 +1279,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             root.addProperty("victim_filter", victimFilter);
         }
 
+        root.add("elytra", this.elytraInfo(player, state, nowTick));
         root.add("stats", Evidence.stats(state.frames, recent));
 
         JsonArray history = new JsonArray();

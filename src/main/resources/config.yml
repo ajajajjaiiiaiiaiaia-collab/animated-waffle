@@ -54,6 +54,22 @@ offtarget:
   grace-ticks: 3          # the crosshair counts as on-target if it touched the victim this recently (1 tick = 50ms)
   vl: 1.0                 # VL added per flag; the punish ladder above applies
 
+# ElytraTarget check: the cheat locks the crosshair on the nearest player while gliding, uses fireworks automatically at a fixed
+# interval (often swapping to the firework slot and back) and is usually combined with killaura. A player is flagged when the
+# crosshair stays locked AND the rockets are machine-regular, or when the rockets are regular AND the slot-swap routine repeats.
+elytratarget:
+  enabled: true
+  max-distance: 100       # blocks; the nearest player within this range is the lock target
+  lock-angle: 6.0         # degrees between the crosshair and the nearest player to count as "locked"
+  lock-ticks: 20          # how long the lock must last (20 ticks = 1 second)
+  boost-count: 4          # rockets needed inside the window before their rhythm is judged
+  window-seconds: 8
+  max-mean-ticks: 18      # average ticks between rockets must be at most this
+  max-stddev-ticks: 1.5   # humans vary by several ticks; a bot varies by about 0 to 1
+  swap-cycles: 3          # slot swap -> rocket -> swap back cycles needed
+  vl: 2.0
+  cooldown-seconds: 10
+
 # Evidence: the last few seconds of every player are kept in memory (per tick: rotation, rotation speed, target,
 # distance, angle error between the crosshair and the target; per attack: distance, angle error, mouse-still ms, CPS ...).
 # When a flag alerts staff, it is saved as plugins/AntiTrigger/evidence/<player>_<time>_<type>.json.
@@ -102,3 +118,4 @@ messages:
   prefix: "&c[AntiTrigger] "
   alert: "&f%player% &7flagged &8| &7instant &f%ratio%% &8| &7passive &f%passive%% &8| &7air swings &f%air% &8| &7hits &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"
   offtarget-alert: "&f%player% &7hits off crosshair &8| &7off-target &f%ratio%% &8| &7attacks &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"
+  elytra-alert: "&f%player% &7ElytraTarget &8| &7rockets &f%boosts% &8(every &f%mean% &8ticks, +-&f%sd%&8) &8| &7swap cycles &f%swaps% &8| &7aim lock &f%lock% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"

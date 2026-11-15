@@ -31,6 +31,17 @@ final class PlayerState
     UUID focus;
     int focusUntil;
     boolean reviewPending;
+    /** ElytraTarget tracking: rocket uses, slot-swap cycles and how long the crosshair has been locked on the nearest player while gliding. */
+    final ArrayDeque<Integer> boosts = new ArrayDeque<>();
+    final ArrayDeque<Integer> swapCycles = new ArrayDeque<>();
+    int lastSwapTick = -1000;
+    int lockTicks;
+    int lockMiss;
+    int lastLockTick = -100000;
+    int lastElytraFlagTick = -100000;
+    String elytraTarget;
+    double elytraDist;
+    double elytraAngle;
     long lastScreenCheck;
     long lastScreenMillis;
     int aiHits;
