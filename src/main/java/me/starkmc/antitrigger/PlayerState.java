@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import org.bukkit.util.BoundingBox;
 
 /** Per-player data kept in memory only. */
 final class PlayerState
@@ -18,6 +19,13 @@ final class PlayerState
     {
     }
 
+    /** Where a player's hitbox was on one tick, so a hit can be judged against what the attacker's client saw. */
+    record BoxSnap(int tick, BoundingBox box)
+    {
+    }
+
+    UUID uuid;
+    final ArrayDeque<BoxSnap> boxes = new ArrayDeque<>();
     final ArrayDeque<Attempt> attempts = new ArrayDeque<>();
     /** Last player the look-ray touched, and when. */
     UUID seenVictim;

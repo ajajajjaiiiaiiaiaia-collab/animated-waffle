@@ -62,7 +62,7 @@ final class Evidence
     }
 
     /** One attack on a player, with everything known at that moment. */
-    record AttackRec(int tick, String victim, double dist, boolean onCrosshair, boolean wideRay, int reaction, long mouseStillMs, int cps, double angleErr, double yawErr, double pitchErr, double damage, double cooldown, String ignored)
+    record AttackRec(int tick, String victim, double dist, boolean onCrosshair, boolean wideRay, int reaction, long mouseStillMs, int cps, double angleErr, double yawErr, double pitchErr, double damage, double cooldown, String ignored, double hitboxAngle, boolean lagOn, double lagAngle, int crowd, String blockedBy, double victimSpeed)
     {
         JsonObject toJson()
         {
@@ -81,6 +81,12 @@ final class Evidence
             o.addProperty("damage", r(this.damage, 2));
             o.addProperty("attack_cooldown", r(this.cooldown, 2));
             o.addProperty("not_judged_reason", this.ignored == null ? "" : this.ignored);
+            o.addProperty("angle_to_hitbox_deg", r(this.hitboxAngle, 1));
+            o.addProperty("crosshair_on_victim_lag_compensated", this.lagOn);
+            o.addProperty("angle_to_hitbox_lag_compensated_deg", r(this.lagAngle, 1));
+            o.addProperty("other_players_within_6_blocks", this.crowd);
+            o.addProperty("other_player_in_front_of_crosshair", this.blockedBy == null ? "" : this.blockedBy);
+            o.addProperty("victim_speed_blocks_per_tick", r(this.victimSpeed, 2));
             return o;
         }
     }
@@ -138,6 +144,55 @@ final class Evidence
         double yawErr = wrap((float)(yawTo - eye.getYaw()));
         double pitchErr = pitchTo - eye.getPitch();
         return new double[] {dist, angle, yawErr, pitchErr};
+    }
+
+    /**
+     * Smallest angle in degrees between the look direction and any point of the hitbox. 0 when the look ray goes
+     * through the box. Unlike the angle to the box centre this does not grow when you hit the head or feet up close.
+     */
+    static double angleToBox(Location eye, BoundingBox box)
+    {
+        Vector look = eye.getDirection();
+        Vector start = eye.toVector();
+
+        if (box.contains(start) || box.rayTrace(start, look, 8.0) != null)
+        {
+            return 0.0;
+        }
+
+        double best = 180.0;
+        int nx = 5;
+        int ny = 9;
+        int nz = 5;
+
+        for (int i = 0; i < nx; i++)
+        {
+            double x = box.getMinX() + (box.getMaxX() - box.getMinX()) * i / (nx - 1);
+
+            for (int j = 0; j < ny; j++)
+            {
+                double y = box.getMinY() + (box.getMaxY() - box.getMinY()) * j / (ny - 1);
+
+                for (int k = 0; k < nz; k++)
+                {
+                    double z = box.getMinZ() + (box.getMaxZ() - box.getMinZ()) * k / (nz - 1);
+                    double dx = x - eye.getX();
+                    double dy = y - eye.getY();
+                    double dz = z - eye.getZ();
+                    double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                    if (len < 1.0E-6)
+                    {
+                        return 0.0;
+                    }
+
+                    double dot = (look.getX() * dx + look.getY() * dy + look.getZ() * dz) / len;
+                    best = Math.min(best, Math.toDegrees(Math.acos(Math.max(-1.0, Math.min(1.0, dot)))));
+                }
+            }
+        }
+
+        return best;
     }
 
     /** Summary numbers computed from the recorded window, so the reviewer does not have to do the maths. */
@@ -287,6 +342,60 @@ final class Evidence
         s.addProperty("avg_rotation_speed_3_ticks_before_attack", n == 0 ? 0.0 : r(sumPre / n, 1));
         s.addProperty("max_rotation_speed_3_ticks_before_attack", r(maxPre, 1));
         s.addProperty("attacks_after_fast_snap_that_ended_on_target", snapThenHit);
+        int lagOnCount = 0;
+        int blocked = 0;
+        int hitThenTurn = 0;
+        double sumLagAngle = 0.0;
+        double maxLagAngle = 0.0;
+        double sumCrowd = 0.0;
+        double sumVictimSpeed = 0.0;
+
+        for (AttackRec a : attacks)
+        {
+            if (a.lagOn())
+            {
+                lagOnCount++;
+            }
+
+            if (a.blockedBy() != null)
+            {
+                blocked++;
+            }
+
+            sumLagAngle += a.lagAngle();
+            maxLagAngle = Math.max(maxLagAngle, a.lagAngle());
+            sumCrowd += a.crowd();
+            sumVictimSpeed += a.victimSpeed();
+
+            if (a.angleErr() >= 20.0 && !a.lagOn())
+            {
+                double bestAfter = 999.0;
+                double turned = 0.0;
+
+                for (Frame f : list)
+                {
+                    if (f.tick() > a.tick() && f.tick() <= a.tick() + 3 && a.victim().equals(f.target()))
+                    {
+                        bestAfter = Math.min(bestAfter, f.angleErr());
+                        turned += f.speed();
+                    }
+                }
+
+                if (bestAfter <= 12.0 && turned >= 15.0)
+                {
+                    hitThenTurn++;
+                }
+            }
+        }
+
+        s.addProperty("attacks_crosshair_on_hitbox_lag_compensated", lagOnCount);
+        s.addProperty("attacks_crosshair_off_hitbox_lag_compensated", n - lagOnCount);
+        s.addProperty("hitbox_angle_lag_compensated_avg_deg", n == 0 ? 0.0 : r(sumLagAngle / n, 1));
+        s.addProperty("hitbox_angle_lag_compensated_max_deg", r(maxLagAngle, 1));
+        s.addProperty("attacks_with_other_player_in_front_of_crosshair", blocked);
+        s.addProperty("avg_other_players_within_6_blocks", n == 0 ? 0.0 : r(sumCrowd / n, 1));
+        s.addProperty("avg_victim_speed_blocks_per_tick", n == 0 ? 0.0 : r(sumVictimSpeed / n, 2));
+        s.addProperty("attacks_hit_first_then_turned_to_victim_within_3_ticks", hitThenTurn);
         addAimStats(s, list);
         return s;
     }

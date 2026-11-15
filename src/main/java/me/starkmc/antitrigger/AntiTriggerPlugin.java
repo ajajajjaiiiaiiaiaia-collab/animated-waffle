@@ -123,6 +123,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int gateCps;
     private double gateReach;
     private double gateInstant;
+    private History history;
     private int maxPingSwing;
 
     // ElytraTarget check
@@ -164,6 +165,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.saveDefaultConfig();
         this.loadSettings();
         this.logFile = new File(this.getDataFolder(), "flags.log");
+        this.history = new History(new File(this.getDataFolder(), "history.json"));
+        this.history.load();
+        Bukkit.getScheduler().runTaskTimer(this, this.history::saveIfDirty, 6000L, 6000L);
         Bukkit.getPluginManager().registerEvents(this, this);
         Bukkit.getScheduler().runTaskTimer(this, this::tickAll, 1L, 1L);
         this.hookPacketEvents();
@@ -173,6 +177,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     @Override
     public void onDisable()
     {
+        this.history.saveIfDirty();
         this.unhookPacketEvents();
     }
 
@@ -331,7 +336,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
     private PlayerState state(Player player)
     {
-        return this.states.computeIfAbsent(player.getUniqueId(), id -> new PlayerState());
+        return this.states.computeIfAbsent(player.getUniqueId(), id ->
+        {
+            PlayerState created = new PlayerState();
+            created.uuid = id;
+            return created;
+        });
     }
 
     /** Once per tick: remember how long each player's crosshair has been on the same enemy. */
@@ -340,6 +350,13 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         for (Player player : Bukkit.getOnlinePlayers())
         {
             PlayerState state = this.state(player);
+            state.boxes.addLast(new PlayerState.BoxSnap(Bukkit.getCurrentTick(), player.getBoundingBox()));
+
+            while (state.boxes.size() > 16)
+            {
+                state.boxes.pollFirst();
+            }
+
             GameMode mode = player.getGameMode();
 
             if (player.isDead() || (mode != GameMode.SURVIVAL && mode != GameMode.ADVENTURE))
@@ -467,7 +484,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
-        boolean on = onTarget || (victim.getUniqueId().equals(state.seenVictim) && now - state.seenTick <= this.offGraceTicks) || this.wideRayHits(attacker, victim);
+        boolean on = onTarget || (victim.getUniqueId().equals(state.seenVictim) && now - state.seenTick <= this.offGraceTicks) || this.wideRayHits(attacker, victim) || this.lagCompensated(attacker, victim, attacker.getEyeLocation(), now)[0] > 0.5;
 
         state.attempts.addLast(new PlayerState.Attempt(now, !on));
         state.trimAttempts(now, this.offWindowTicks, this.offWindowSize);
@@ -506,6 +523,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         state.totalFlags++;
         state.lastFlagMillis = System.currentTimeMillis();
 
+        this.history.flag(player.getUniqueId(), player.getName(), "offtarget");
         String ratioText = String.valueOf(Math.round(ratio * 100.0));
         String vlText = String.format(Locale.ROOT, "%.1f", state.vl);
         String line = this.offAlertFormat.replace("%player%", player.getName()).replace("%ratio%", ratioText).replace("%samples%", String.valueOf(samples)).replace("%vl%", vlText).replace("%ping%", String.valueOf(player.getPing()));
@@ -638,6 +656,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         state.totalFlags++;
         state.lastFlagMillis = System.currentTimeMillis();
 
+        this.history.flag(player.getUniqueId(), player.getName(), "instant");
         String ratioText = String.valueOf(Math.round(ratio * 100.0));
         String passiveText = String.valueOf(Math.round(passiveRatio * 100.0));
         String vlText = String.format(Locale.ROOT, "%.1f", state.vl);
@@ -682,6 +701,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
                     continue;
                 }
 
+                this.history.ban(player.getUniqueId(), player.getName());
                 this.executeAction(player.getName(), action, vlText);
             }
         }
@@ -781,6 +801,83 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
     }
 
+    /** The crosshair counts as on the victim when it is within this many degrees of the hitbox. */
+    private static final double LAG_ON_ANGLE = 1.0;
+
+    /**
+     * What the attacker's client most likely saw: the victim's hitbox as it was about one ping ago (plus the few ticks the
+     * client takes to smooth movement). Returns {1 when the crosshair was on that hitbox else 0, smallest angle to it in degrees}.
+     */
+    private double[] lagCompensated(Player attacker, Player victim, Location eye, int now)
+    {
+        PlayerState victimState = this.states.get(victim.getUniqueId());
+        double best = Evidence.angleToBox(eye, victim.getBoundingBox());
+
+        if (victimState != null && !victimState.boxes.isEmpty())
+        {
+            double pingTicks = attacker.getPing() / 50.0;
+            int lo = Math.max(0, (int)Math.floor(pingTicks - 0.5));
+            int hi = Math.min(14, (int)Math.ceil(pingTicks + 3.0));
+            best = 180.0;
+
+            for (PlayerState.BoxSnap snap : victimState.boxes)
+            {
+                int age = now - snap.tick();
+
+                if (age >= lo && age <= hi)
+                {
+                    best = Math.min(best, Evidence.angleToBox(eye, snap.box()));
+                }
+            }
+
+            if (best >= 180.0)
+            {
+                best = Evidence.angleToBox(eye, victim.getBoundingBox());
+            }
+        }
+
+        return new double[] {best <= LAG_ON_ANGLE ? 1.0 : 0.0, best};
+    }
+
+    private int crowd(Player attacker, Player victim)
+    {
+        int count = 0;
+
+        for (org.bukkit.entity.Entity entity : attacker.getNearbyEntities(6.0, 6.0, 6.0))
+        {
+            if (entity instanceof Player other && !other.equals(victim) && other.getGameMode() != GameMode.SPECTATOR)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /** Name of another player standing between the crosshair and the victim, or null. */
+    private String inFront(Player attacker, Player victim, Location eye, double victimDistance)
+    {
+        RayTraceResult result = attacker.getWorld().rayTraceEntities(eye, eye.getDirection(), Math.max(1.0, victimDistance), 0.1, entity -> entity instanceof Player other && !other.equals(attacker) && !other.equals(victim) && other.getGameMode() != GameMode.SPECTATOR);
+        return result != null && result.getHitEntity() != null ? result.getHitEntity().getName() : null;
+    }
+
+    private double victimSpeed(Player victim)
+    {
+        PlayerState victimState = this.states.get(victim.getUniqueId());
+
+        if (victimState == null || victimState.boxes.size() < 2)
+        {
+            return 0.0;
+        }
+
+        PlayerState.BoxSnap[] last = victimState.boxes.toArray(new PlayerState.BoxSnap[0]);
+        org.bukkit.util.Vector a = last[last.length - 1].box().getCenter();
+        org.bukkit.util.Vector b = last[last.length - 2].box().getCenter();
+        double dx = a.getX() - b.getX();
+        double dz = a.getZ() - b.getZ();
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
     private void recordAttack(Player attacker, PlayerState state, Player victim, int now, double damage)
     {
         if (!this.evidenceEnabled)
@@ -788,10 +885,13 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
-        double[] aim = Evidence.aim(attacker.getEyeLocation(), victim);
+        Location eye = attacker.getEyeLocation();
+        double[] aim = Evidence.aim(eye, victim);
         boolean on = victim.getUniqueId().equals(state.target) && state.onTargetTicks >= 1;
         long still = System.currentTimeMillis() - this.lastRotation.getOrDefault(attacker.getUniqueId(), 0L);
-        state.attackLog.addLast(new Evidence.AttackRec(now, victim.getName(), aim[0], on, this.wideRayHits(attacker, victim), on ? state.onTargetTicks : 0, still, state.cps(now), aim[1], aim[2], aim[3], damage, attacker.getAttackCooldown(), this.skipReason(attacker)));
+        double hitboxAngle = Evidence.angleToBox(eye, victim.getBoundingBox());
+        double[] lag = this.lagCompensated(attacker, victim, eye, now);
+        state.attackLog.addLast(new Evidence.AttackRec(now, victim.getName(), aim[0], on, this.wideRayHits(attacker, victim), on ? state.onTargetTicks : 0, still, state.cps(now), aim[1], aim[2], aim[3], damage, attacker.getAttackCooldown(), this.skipReason(attacker), hitboxAngle, lag[0] > 0.5, lag[1], this.crowd(attacker, victim), this.inFront(attacker, victim, eye, aim[0]), this.victimSpeed(victim)));
 
         while (!state.attackLog.isEmpty() && (state.attackLog.size() > 40 || now - state.attackLog.peekFirst().tick() > this.evidenceAttackTicks))
         {
@@ -882,6 +982,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         state.totalFlags++;
         state.lastFlagMillis = System.currentTimeMillis();
 
+        this.history.flag(player.getUniqueId(), player.getName(), "aimassist");
         String vlText = String.format(Locale.ROOT, "%.1f", state.vl);
         String pullText = String.format(Locale.ROOT, "%.2f", pull);
         String cvText = String.format(Locale.ROOT, "%.2f", cv);
@@ -898,6 +999,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         if (this.punishEnabled && !this.aimCommands.isEmpty())
         {
             this.alertStaff("&cAimAssist punished: &f" + player.getName());
+            this.history.ban(player.getUniqueId(), player.getName());
 
             for (String command : this.aimCommands)
             {
@@ -1108,6 +1210,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         state.totalFlags++;
         state.lastFlagMillis = System.currentTimeMillis();
 
+        this.history.flag(player.getUniqueId(), player.getName(), "elytratarget");
         String vlText = String.format(Locale.ROOT, "%.1f", state.vl);
         String meanText = String.format(Locale.ROOT, "%.1f", mean);
         String sdText = String.format(Locale.ROOT, "%.1f", sd);
@@ -1124,6 +1227,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         if (this.punishEnabled && !this.elytraCommands.isEmpty())
         {
             this.alertStaff("&cElytraTarget punished: &f" + player.getName());
+            this.history.ban(player.getUniqueId(), player.getName());
 
             for (String command : this.elytraCommands)
             {
@@ -1282,7 +1386,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
-        double offFraction = st.get("attacks_off_victim_server_ray").getAsDouble() / n;
+        double offFraction = st.get("attacks_crosshair_off_hitbox_lag_compensated").getAsDouble() / n;
         int instant = 0;
 
         for (Evidence.AttackRec attack : recent)
@@ -1356,6 +1460,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
+        this.history.verdict(state.uuid, name, verdict.verdict());
         long ms = System.currentTimeMillis();
 
         if (ms - state.lastAiHitMillis > this.primaryWindowMs)
@@ -1406,6 +1511,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
 
         this.alertStaff("&aAI banned: " + summary);
+        this.history.ban(state.uuid, name);
         state.aiHits = 0;
 
         for (String command : this.primaryCommands)
@@ -1505,6 +1611,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             root.addProperty("victim_filter", victimFilter);
         }
 
+        root.add("player_history", this.history.toJson(player.getUniqueId()));
         root.add("elytra", this.elytraInfo(player, state, nowTick));
         root.add("stats", Evidence.stats(state.frames, recent));
 
@@ -1634,10 +1741,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
 
         String summary = "&f" + name + " &8| &7AI &f" + verdict.verdict() + " &8| &7confidence &f" + Math.round(verdict.confidence() * 100.0) + "% &8| &7type &f" + verdict.cheatType() + " &8| &7" + reasons;
+        this.history.verdict(state.uuid, name, verdict.verdict());
 
         if ("cheating".equalsIgnoreCase(verdict.verdict()) && verdict.confidence() >= this.reviewMinConfidence)
         {
             this.alertStaff("&aAI confirmed: " + summary);
+            this.history.ban(state.uuid, name);
             this.executeAction(name, action, vlText);
         }
         else
