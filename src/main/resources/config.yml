@@ -56,7 +56,8 @@ offtarget:
 
 # ElytraTarget check: the cheat locks the crosshair on the nearest player while gliding, uses fireworks automatically at a fixed
 # interval (often swapping to the firework slot and back) and is usually combined with killaura. A player is flagged when the
-# crosshair stays locked AND the rockets are machine-regular, or when the rockets are regular AND the slot-swap routine repeats.
+# rockets are machine-regular AND the crosshair stays locked on the nearest player, or the slot-swap routine repeats.
+# Locking on an enemy or swapping slots alone is never enough: skilled elytra fighters do both.
 elytratarget:
   enabled: true
   max-distance: 100       # blocks; the nearest player within this range is the lock target
@@ -64,6 +65,7 @@ elytratarget:
   lock-ticks: 20          # how long the lock must last (20 ticks = 1 second)
   boost-count: 4          # rockets needed inside the window before their rhythm is judged
   window-seconds: 8
+  min-mean-ticks: 6       # holding right-click repeats rockets every 4 ticks (legit), so a rhythm faster than this is ignored
   max-mean-ticks: 18      # average ticks between rockets must be at most this
   max-stddev-ticks: 1.5   # humans vary by several ticks; a bot varies by about 0 to 1
   swap-cycles: 3          # slot swap -> rocket -> swap back cycles needed

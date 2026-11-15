@@ -133,6 +133,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int elytraWindowTicks;
     private double elytraMaxStd;
     private double elytraMaxMean;
+    private double elytraMinMean;
     private int elytraSwapCycles;
     private double elytraVl;
     private int elytraCooldownTicks;
@@ -297,6 +298,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.elytraWindowTicks = Math.max(40, c.getInt("elytratarget.window-seconds", 8) * 20);
         this.elytraMaxStd = Math.max(0.2, c.getDouble("elytratarget.max-stddev-ticks", 1.5));
         this.elytraMaxMean = Math.max(4.0, c.getDouble("elytratarget.max-mean-ticks", 18.0));
+        this.elytraMinMean = Math.max(0.0, c.getDouble("elytratarget.min-mean-ticks", 6.0));
         this.elytraSwapCycles = Math.max(2, c.getInt("elytratarget.swap-cycles", 3));
         this.elytraVl = c.getDouble("elytratarget.vl", 2.0);
         this.elytraCooldownTicks = Math.max(20, c.getInt("elytratarget.cooldown-seconds", 10) * 20);
@@ -941,11 +943,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
 
         double[] bs = this.boostStats(state);
-        boolean regular = bs[0] >= this.elytraBoostCount && bs[1] <= this.elytraMaxMean && bs[2] <= this.elytraMaxStd;
+        boolean regular = bs[0] >= this.elytraBoostCount && bs[1] >= this.elytraMinMean && bs[1] <= this.elytraMaxMean && bs[2] <= this.elytraMaxStd;
         boolean swapPattern = state.swapCycles.size() >= this.elytraSwapCycles;
         boolean lock = now - state.lastLockTick <= this.elytraWindowTicks;
 
-        if ((lock && (regular || swapPattern)) || (regular && swapPattern))
+        // A machine-regular rocket rhythm is required. Locking on an enemy and swapping slots are things skilled players do too.
+        if (regular && (lock || swapPattern))
         {
             state.lastElytraFlagTick = now;
             this.flagElytra(player, state, (int)bs[0], bs[1], bs[2], state.swapCycles.size(), lock);

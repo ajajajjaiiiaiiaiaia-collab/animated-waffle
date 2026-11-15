@@ -32,6 +32,7 @@ final class AiReviewer
         - Autoclicker: very high or perfectly regular CPS (over about 20).
         - ElytraTarget (elytra cheat): while gliding, the client locks the crosshair onto the nearest player (even 60+ blocks away), fires fireworks automatically at a fixed interval (every 8 to 10 ticks, often by swapping to the firework slot and back), and is usually combined with killaura. In the "elytra" section look for: rocket intervals with a standard deviation near 0 to 1.5 ticks, repeated slot swap -> rocket -> swap cycles, and a crosshair that stays within a few degrees of the nearest player while gliding (aim_lock_ticks).
         What legitimate play looks like and what causes false alarms:
+        - Holding the right mouse button on a firework rocket repeats it every 4 ticks exactly, which is legitimate and not evidence of ElytraTarget. Skilled elytra fighters also lock their view on an enemy and swap hotbar slots between sword and rockets.
         - High ping or low TPS make the server-side ray lag behind the real crosshair; judge ping and tps before trusting off-target attacks.
         - Knockback pushes the target back into the crosshair, creating many fast hits at close range.
         - Strafing and close fights produce natural big rotation changes; smooth, gradual angle error reduction is normal.
