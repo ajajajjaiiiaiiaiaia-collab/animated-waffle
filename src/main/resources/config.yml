@@ -72,6 +72,19 @@ elytratarget:
   vl: 2.0
   cooldown-seconds: 10
 
+# AimAssist: aim assist pulls the view toward the target by a nearly constant share of the remaining error every tick.
+# While you track someone, (turn this tick) / (error last tick) is therefore positive and steady, a human's is jumpy and often overshoots.
+# Every axis with enough samples must show a steady pull toward the target. Needs evidence.enabled.
+aimassist:
+  enabled: true
+  min-samples: 25         # tracking ticks needed before judging (about 1.5 s of tracking)
+  max-ratio-cv: 0.35      # variation of the pull; lower = stricter. Humans are well above 0.6
+  min-toward-fraction: 0.9  # share of turning ticks that move toward the target
+  min-ratio-mean: 0.04    # the pull must be at least this share of the error per tick
+  max-ratio-mean: 0.7
+  vl: 1.5
+  cooldown-seconds: 15
+
 # Evidence: the last few seconds of every player are kept in memory (per tick: rotation, rotation speed, target,
 # distance, angle error between the crosshair and the target; per attack: distance, angle error, mouse-still ms, CPS ...).
 # When a flag alerts staff, it is saved as plugins/AntiTrigger/evidence/<player>_<time>_<type>.json.
@@ -120,4 +133,5 @@ messages:
   prefix: "&c[AntiTrigger] "
   alert: "&f%player% &7flagged &8| &7instant &f%ratio%% &8| &7passive &f%passive%% &8| &7air swings &f%air% &8| &7hits &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"
   offtarget-alert: "&f%player% &7hits off crosshair &8| &7off-target &f%ratio%% &8| &7attacks &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"
+  aimassist-alert: "&f%player% &7AimAssist &8| &7pull &f%pull% &8(variation &f%cv%&8) &8| &7samples &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"
   elytra-alert: "&f%player% &7ElytraTarget &8| &7rockets &f%boosts% &8(every &f%mean% &8ticks, +-&f%sd%&8) &8| &7swap cycles &f%swaps% &8| &7aim lock &f%lock% &8| &7VL &f%vl% &8| &7ping &f%ping%ms"

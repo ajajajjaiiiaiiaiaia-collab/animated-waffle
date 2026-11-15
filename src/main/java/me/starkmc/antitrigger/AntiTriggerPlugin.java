@@ -138,6 +138,15 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private double elytraVl;
     private int elytraCooldownTicks;
     private String elytraAlertFormat;
+    private boolean aimEnabled;
+    private int aimMinSamples;
+    private double aimMaxCv;
+    private double aimMinToward;
+    private double aimMinMean;
+    private double aimMaxMean;
+    private double aimVl;
+    private int aimCooldownTicks;
+    private String aimAlertFormat;
 
     /** One tier of the punish ladder. */
     private record PunishAction(double vl, List<String> commands)
@@ -302,6 +311,15 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.elytraSwapCycles = Math.max(2, c.getInt("elytratarget.swap-cycles", 3));
         this.elytraVl = c.getDouble("elytratarget.vl", 2.0);
         this.elytraCooldownTicks = Math.max(20, c.getInt("elytratarget.cooldown-seconds", 10) * 20);
+        this.aimEnabled = c.getBoolean("aimassist.enabled", true);
+        this.aimMinSamples = Math.max(10, c.getInt("aimassist.min-samples", 25));
+        this.aimMaxCv = Math.max(0.05, c.getDouble("aimassist.max-ratio-cv", 0.35));
+        this.aimMinToward = Math.min(1.0, Math.max(0.5, c.getDouble("aimassist.min-toward-fraction", 0.9)));
+        this.aimMinMean = Math.max(0.0, c.getDouble("aimassist.min-ratio-mean", 0.04));
+        this.aimMaxMean = Math.max(this.aimMinMean + 0.01, c.getDouble("aimassist.max-ratio-mean", 0.7));
+        this.aimVl = c.getDouble("aimassist.vl", 1.5);
+        this.aimCooldownTicks = Math.max(20, c.getInt("aimassist.cooldown-seconds", 15) * 20);
+        this.aimAlertFormat = c.getString("messages.aimassist-alert", "&f%player% &7AimAssist &8| &7pull &f%pull% &8(variation &f%cv%&8) &8| &7samples &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms");
         this.elytraAlertFormat = c.getString("messages.elytra-alert", "&f%player% &7ElytraTarget &8| &7rockets &f%boosts% &8(every &f%mean% &8ticks, &7+-&f%sd%&8) &8| &7swap cycles &f%swaps% &8| &7aim lock &f%lock% &8| &7VL &f%vl% &8| &7ping &f%ping%ms");
     }
 
@@ -768,7 +786,108 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             state.attackLog.pollFirst();
         }
 
+        this.checkAimAssist(attacker, state, now);
         this.maybeScreen(attacker, state);
+    }
+
+    /**
+     * Returns a short description when the recent tracking looks like aim assist, otherwise null.
+     * Aim assist turns the view toward the target by a nearly constant share of the remaining error every tick.
+     * Every axis that has enough samples must show it, and the pull must be steady, toward the target and of a plausible size.
+     */
+    private String aimAssistReason(JsonObject st)
+    {
+        double[] yaw = Evidence.yawTrack(st);
+        double[] pitch = Evidence.pitchTrack(st);
+        boolean yawEnough = yaw[0] >= this.aimMinSamples;
+        boolean pitchEnough = pitch[0] >= this.aimMinSamples;
+
+        if (!yawEnough && !pitchEnough)
+        {
+            return null;
+        }
+
+        if (yawEnough && !this.aimAxisPasses(yaw))
+        {
+            return null;
+        }
+
+        if (pitchEnough && !this.aimAxisPasses(pitch))
+        {
+            return null;
+        }
+
+        double[] used = yawEnough ? yaw : pitch;
+        return "aim assist pull " + String.format(Locale.ROOT, "%.2f", used[2]) + " cv " + String.format(Locale.ROOT, "%.2f", used[3]) + " samples " + (int)used[0];
+    }
+
+    private boolean aimAxisPasses(double[] axis)
+    {
+        return axis[1] >= this.aimMinToward && axis[2] >= this.aimMinMean && axis[2] <= this.aimMaxMean && axis[3] <= this.aimMaxCv;
+    }
+
+    private void checkAimAssist(Player player, PlayerState state, int now)
+    {
+        if (!this.aimEnabled || now - state.lastAimCheckTick < 20 || now - state.lastAimFlagTick < this.aimCooldownTicks)
+        {
+            return;
+        }
+
+        state.lastAimCheckTick = now;
+
+        if (this.skipReason(player) != null)
+        {
+            return;
+        }
+
+        Evidence.AttackRec last = state.attackLog.peekLast();
+
+        if (last == null || state.frames.size() < this.aimMinSamples)
+        {
+            return;
+        }
+
+        JsonObject st = new JsonObject();
+        Evidence.addAimStats(st, new ArrayList<>(state.frames));
+        String why = this.aimAssistReason(st);
+
+        if (why == null)
+        {
+            return;
+        }
+
+        state.lastAimFlagTick = now;
+        double[] yaw = Evidence.yawTrack(st);
+        double[] pitch = Evidence.pitchTrack(st);
+        double[] used = yaw[0] >= this.aimMinSamples ? yaw : pitch;
+        this.flagAimAssist(player, state, used[2], used[3], (int)used[0]);
+    }
+
+    private void flagAimAssist(Player player, PlayerState state, double pull, double cv, int samples)
+    {
+        state.refreshVl(this.decayPerMinute, this.resetAfterMillis);
+        state.vl += this.aimVl;
+        state.totalFlags++;
+        state.lastFlagMillis = System.currentTimeMillis();
+
+        String vlText = String.format(Locale.ROOT, "%.1f", state.vl);
+        String pullText = String.format(Locale.ROOT, "%.2f", pull);
+        String cvText = String.format(Locale.ROOT, "%.2f", cv);
+        String line = this.aimAlertFormat.replace("%player%", player.getName()).replace("%pull%", pullText).replace("%cv%", cvText).replace("%samples%", String.valueOf(samples)).replace("%vl%", vlText).replace("%ping%", String.valueOf(player.getPing()));
+        this.writeLog(player.getName() + " vl=" + vlText + " AIM-ASSIST pull=" + pullText + " cv=" + cvText + " samples=" + samples + " ping=" + player.getPing());
+
+        if (state.vl >= this.alertVl)
+        {
+            this.alertStaff(line);
+        }
+
+        this.afterFlag(player, state, "aimassist", "pull=" + pullText + " cv=" + cvText + " samples=" + samples);
+        this.elytraScreen(player, state, "aim assist pull " + pullText + " cv " + cvText);
+
+        if (this.punishEnabled)
+        {
+            this.runPunishActions(player, state, vlText);
+        }
     }
 
     /** Every tick while gliding: how long has the crosshair stayed on the nearest player? ElytraTarget locks on automatically. */
@@ -1132,6 +1251,13 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         if (offFraction >= this.gateOff)
         {
             why.add("off-crosshair " + Math.round(offFraction * 100.0) + "%");
+        }
+
+        String aimWhy = this.aimAssistReason(st);
+
+        if (aimWhy != null)
+        {
+            why.add(aimWhy);
         }
 
         if (st.get("attacks_after_fast_snap_that_ended_on_target").getAsInt() >= this.gateSnaps)

@@ -39,6 +39,8 @@ final class PlayerState
     int lockMiss;
     int lastLockTick = -100000;
     int lastElytraFlagTick = -100000;
+    int lastAimCheckTick = -100000;
+    int lastAimFlagTick = -100000;
     String elytraTarget;
     double elytraDist;
     double elytraAngle;

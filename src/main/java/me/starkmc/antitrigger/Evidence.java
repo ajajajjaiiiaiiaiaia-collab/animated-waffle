@@ -276,6 +276,170 @@ final class Evidence
         s.addProperty("avg_rotation_speed_3_ticks_before_attack", n == 0 ? 0.0 : r(sumPre / n, 1));
         s.addProperty("max_rotation_speed_3_ticks_before_attack", r(maxPre, 1));
         s.addProperty("attacks_after_fast_snap_that_ended_on_target", snapThenHit);
+        addAimStats(s, list);
         return s;
+    }
+
+    private static final double TRACK_MIN_ERR = 1.5;
+    private static final double TRACK_MAX_ERR = 30.0;
+    private static final double TRACK_MIN_TURN = 0.05;
+
+    /**
+     * Aim-assist signals. Aim assist pulls the view toward the target by a fixed share of the remaining error every tick,
+     * so while tracking, (rotation this tick) / (error last tick) is positive and nearly constant. A human's share varies a lot,
+     * and often overshoots (negative). Also: how smooth the turning is, and whether the mouse deltas are multiples of one step.
+     */
+    static void addAimStats(JsonObject s, List<Frame> list)
+    {
+        List<Double> yawRatios = new ArrayList<>();
+        List<Double> pitchRatios = new ArrayList<>();
+        List<Double> accel = new ArrayList<>();
+
+        for (int i = 1; i < list.size(); i++)
+        {
+            Frame p = list.get(i - 1);
+            Frame f = list.get(i);
+
+            if (f.tick() - p.tick() != 1 || f.target() == null || !f.target().equals(p.target()) || f.dist() < MIN_RELIABLE_DISTANCE || f.dist() > 6.0)
+            {
+                continue;
+            }
+
+            double ye = p.yawErr();
+            double pe = p.pitchErr();
+
+            if (Math.abs(ye) >= TRACK_MIN_ERR && Math.abs(ye) <= TRACK_MAX_ERR && Math.abs(f.dYaw()) >= TRACK_MIN_TURN)
+            {
+                yawRatios.add(clamp(f.dYaw() / ye, -1.0, 2.0));
+            }
+
+            if (Math.abs(pe) >= TRACK_MIN_ERR && Math.abs(pe) <= TRACK_MAX_ERR && Math.abs(f.dPitch()) >= TRACK_MIN_TURN)
+            {
+                pitchRatios.add(clamp(f.dPitch() / pe, -1.0, 2.0));
+            }
+
+            if (i >= 2)
+            {
+                Frame pp = list.get(i - 2);
+
+                if (p.tick() - pp.tick() == 1 && p.target() != null && Math.abs(f.dYaw()) >= TRACK_MIN_TURN)
+                {
+                    accel.add((double)(f.dYaw() - 2.0F * p.dYaw() + pp.dYaw()));
+                }
+            }
+        }
+
+        double[] y = ratioStats(yawRatios);
+        double[] pt = ratioStats(pitchRatios);
+        s.addProperty("aim_yaw_track_samples", yawRatios.size());
+        s.addProperty("aim_yaw_track_toward_target_fraction", r(y[0], 2));
+        s.addProperty("aim_yaw_track_ratio_mean", r(y[1], 3));
+        s.addProperty("aim_yaw_track_ratio_cv", r(y[2], 2));
+        s.addProperty("aim_pitch_track_samples", pitchRatios.size());
+        s.addProperty("aim_pitch_track_toward_target_fraction", r(pt[0], 2));
+        s.addProperty("aim_pitch_track_ratio_mean", r(pt[1], 3));
+        s.addProperty("aim_pitch_track_ratio_cv", r(pt[2], 2));
+        s.addProperty("aim_yaw_accel_samples", accel.size());
+        s.addProperty("aim_yaw_accel_stddev_deg", accel.size() < 2 ? -1.0 : r(stddev(accel), 3));
+
+        List<Double> pitchDeltas = new ArrayList<>();
+
+        for (Frame f : list)
+        {
+            double d = Math.abs(f.dPitch());
+
+            if (d > 0.0006 && d < 60.0)
+            {
+                pitchDeltas.add(d);
+            }
+        }
+
+        s.addProperty("pitch_delta_samples", pitchDeltas.size());
+        s.addProperty("pitch_delta_gcd_step_deg", pitchDeltas.size() < 20 ? -1.0 : r(gcd(pitchDeltas), 4));
+    }
+
+    /** {share of values above 0, mean, coefficient of variation (stddev / |mean|)} */
+    private static double[] ratioStats(List<Double> values)
+    {
+        if (values.isEmpty())
+        {
+            return new double[] {0.0, 0.0, 0.0};
+        }
+
+        int pos = 0;
+        double sum = 0.0;
+
+        for (double v : values)
+        {
+            if (v > 0.0)
+            {
+                pos++;
+            }
+
+            sum += v;
+        }
+
+        double mean = sum / values.size();
+        double sd = stddev(values);
+        return new double[] {(double)pos / values.size(), mean, Math.abs(mean) < 1.0E-6 ? 99.0 : sd / Math.abs(mean)};
+    }
+
+    private static double stddev(List<Double> values)
+    {
+        double mean = 0.0;
+
+        for (double v : values)
+        {
+            mean += v;
+        }
+
+        mean /= values.size();
+        double var = 0.0;
+
+        for (double v : values)
+        {
+            var += (v - mean) * (v - mean);
+        }
+
+        return Math.sqrt(var / values.size());
+    }
+
+    /** Euclid with a tolerance. Genuine mouse input moves in multiples of one sensitivity step; 0 means no common step. */
+    private static double gcd(List<Double> values)
+    {
+        double g = values.get(0);
+
+        for (int i = 1; i < values.size() && i < 80; i++)
+        {
+            double a = Math.max(g, values.get(i));
+            double b = Math.min(g, values.get(i));
+
+            while (b > 0.0006)
+            {
+                double rest = a % b;
+                a = b;
+                b = rest;
+            }
+
+            g = a;
+
+            if (g <= 0.0006)
+            {
+                return 0.0;
+            }
+        }
+
+        return g;
+    }
+
+    /** Result of the tracking test used by the aim-assist check: {samples, towardFraction, ratioMean, ratioCv}. */
+    static double[] yawTrack(JsonObject stats)
+    {
+        return new double[] {stats.get("aim_yaw_track_samples").getAsDouble(), stats.get("aim_yaw_track_toward_target_fraction").getAsDouble(), stats.get("aim_yaw_track_ratio_mean").getAsDouble(), stats.get("aim_yaw_track_ratio_cv").getAsDouble()};
+    }
+
+    static double[] pitchTrack(JsonObject stats)
+    {
+        return new double[] {stats.get("aim_pitch_track_samples").getAsDouble(), stats.get("aim_pitch_track_toward_target_fraction").getAsDouble(), stats.get("aim_pitch_track_ratio_mean").getAsDouble(), stats.get("aim_pitch_track_ratio_cv").getAsDouble()};
     }
 }
