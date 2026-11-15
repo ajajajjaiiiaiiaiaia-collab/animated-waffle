@@ -86,6 +86,8 @@ aimassist:
   max-ratio-mean: 0.7
   vl: 1.5
   cooldown-seconds: 15
+  commands:             # run at once on a flag, instead of the punish ladder and the AI (needs punish.enabled)
+    - "tempban %player% 1d AimAssist"
 
 # Evidence: the last few seconds of every player are kept in memory (per tick: rotation, rotation speed, target,
 # distance, angle error between the crosshair and the target; per attack: distance, angle error, mouse-still ms, CPS ...).

@@ -148,6 +148,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private double aimVl;
     private int aimCooldownTicks;
     private String aimAlertFormat;
+    private List<String> aimCommands = new ArrayList<>();
 
     /** One tier of the punish ladder. */
     private record PunishAction(double vl, List<String> commands)
@@ -321,6 +322,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.aimMaxMean = Math.max(this.aimMinMean + 0.01, c.getDouble("aimassist.max-ratio-mean", 0.7));
         this.aimVl = c.getDouble("aimassist.vl", 1.5);
         this.aimCooldownTicks = Math.max(20, c.getInt("aimassist.cooldown-seconds", 15) * 20);
+        this.aimCommands = new ArrayList<>(c.getStringList("aimassist.commands"));
         this.aimAlertFormat = c.getString("messages.aimassist-alert", "&f%player% &7AimAssist &8| &7pull &f%pull% &8(variation &f%cv%&8) &8| &7samples &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms");
         this.elytraAlertFormat = c.getString("messages.elytra-alert", "&f%player% &7ElytraTarget &8| &7rockets &f%boosts% &8(every &f%mean% &8ticks, &7+-&f%sd%&8) &8| &7swap cycles &f%swaps% &8| &7aim lock &f%lock% &8| &7VL &f%vl% &8| &7ping &f%ping%ms");
     }
@@ -884,6 +886,21 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
 
         this.afterFlag(player, state, "aimassist", "pull=" + pullText + " cv=" + cvText + " samples=" + samples);
+
+        if (this.punishEnabled && !this.aimCommands.isEmpty())
+        {
+            this.alertStaff("&cAimAssist punished: &f" + player.getName());
+
+            for (String command : this.aimCommands)
+            {
+                String ready = command.replace("%player%", player.getName()).replace("%vl%", vlText);
+                this.writeLog(player.getName() + " running AimAssist action: " + ready);
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), ready);
+            }
+
+            return;
+        }
+
         this.elytraScreen(player, state, "aim assist pull " + pullText + " cv " + cvText);
 
         if (this.punishEnabled)
