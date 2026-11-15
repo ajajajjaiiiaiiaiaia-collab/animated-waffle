@@ -71,6 +71,8 @@ elytratarget:
   swap-cycles: 3          # slot swap -> rocket -> swap back cycles needed
   vl: 2.0
   cooldown-seconds: 10
+  commands:             # run at once on a flag, instead of the punish ladder and the AI (needs punish.enabled)
+    - "tempban %player% 1d ElytraTarget"
 
 # AimAssist: aim assist pulls the view toward the target by a nearly constant share of the remaining error every tick.
 # While you track someone, (turn this tick) / (error last tick) is therefore positive and steady, a human's is jumpy and often overshoots.

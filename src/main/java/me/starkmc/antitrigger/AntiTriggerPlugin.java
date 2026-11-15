@@ -137,6 +137,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int elytraSwapCycles;
     private double elytraVl;
     private int elytraCooldownTicks;
+    private List<String> elytraCommands = new ArrayList<>();
     private String elytraAlertFormat;
     private boolean aimEnabled;
     private int aimMinSamples;
@@ -311,6 +312,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.elytraSwapCycles = Math.max(2, c.getInt("elytratarget.swap-cycles", 3));
         this.elytraVl = c.getDouble("elytratarget.vl", 2.0);
         this.elytraCooldownTicks = Math.max(20, c.getInt("elytratarget.cooldown-seconds", 10) * 20);
+        this.elytraCommands = new ArrayList<>(c.getStringList("elytratarget.commands"));
         this.aimEnabled = c.getBoolean("aimassist.enabled", true);
         this.aimMinSamples = Math.max(10, c.getInt("aimassist.min-samples", 25));
         this.aimMaxCv = Math.max(0.05, c.getDouble("aimassist.max-ratio-cv", 0.35));
@@ -1093,6 +1095,21 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
 
         this.afterFlag(player, state, "elytratarget", "rockets=" + boosts + " mean=" + meanText + " sd=" + sdText + " swaps=" + swaps + " lock=" + lock);
+
+        if (this.punishEnabled && !this.elytraCommands.isEmpty())
+        {
+            this.alertStaff("&cElytraTarget punished: &f" + player.getName());
+
+            for (String command : this.elytraCommands)
+            {
+                String ready = command.replace("%player%", player.getName()).replace("%vl%", vlText);
+                this.writeLog(player.getName() + " running ElytraTarget action: " + ready);
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), ready);
+            }
+
+            return;
+        }
+
         this.elytraScreen(player, state, "elytra target pattern");
 
         if (this.punishEnabled)
