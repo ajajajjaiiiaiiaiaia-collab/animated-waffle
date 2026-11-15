@@ -123,6 +123,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int gateCps;
     private double gateReach;
     private double gateInstant;
+    private int maxPingSwing;
 
     // ElytraTarget check
     private boolean elytraEnabled;
@@ -301,6 +302,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.gateCps = Math.max(5, c.getInt("review.primary.gate.cps", 18));
         this.gateReach = c.getDouble("review.primary.gate.reach", 3.6);
         this.gateInstant = c.getDouble("review.primary.gate.instant-ratio", 0.6);
+        this.maxPingSwing = Math.max(20, c.getInt("review.primary.max-ping-swing", 70));
         this.elytraEnabled = c.getBoolean("elytratarget.enabled", true);
         this.elytraMaxDistance = Math.max(10.0, c.getDouble("elytratarget.max-distance", 100.0));
         this.elytraLockAngle = Math.max(1.0, c.getDouble("elytratarget.lock-angle", 6.0));
@@ -1267,6 +1269,11 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
+        if (this.pingSwing(state) > this.maxPingSwing)
+        {
+            return;
+        }
+
         JsonObject st = Evidence.stats(state.frames, recent);
         int n = st.get("attacks_recorded").getAsInt();
 
@@ -1361,6 +1368,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
+        if (this.pingSwing(state) > this.maxPingSwing)
+        {
+            this.writeLog(name + " AI verdict dropped, unstable connection: ping moved by " + this.pingSwing(state) + "ms");
+            return;
+        }
+
         Player stillThere = Bukkit.getPlayerExact(name);
 
         if (stillThere != null)
@@ -1401,6 +1414,21 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             this.writeLog(name + " running AI action: " + ready);
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), ready);
         }
+    }
+
+    /** How much the player's ping moved inside the recorded window. A big swing means a lag spike or a bad connection. */
+    private int pingSwing(PlayerState state)
+    {
+        int min = Integer.MAX_VALUE;
+        int max = 0;
+
+        for (Evidence.Frame f : state.frames)
+        {
+            min = Math.min(min, f.ping());
+            max = Math.max(max, f.ping());
+        }
+
+        return max == 0 ? 0 : max - min;
     }
 
     /** The cheat name for a ban reason. Anything unknown becomes the neutral "Hacks". */

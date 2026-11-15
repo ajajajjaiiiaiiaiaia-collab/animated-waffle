@@ -112,7 +112,7 @@ review:
   provider: gemini        # gemini or anthropic
   api-key: ""
   model: ""               # empty = default for the provider (gemini-3.6-flash / claude-sonnet-5-5)
-  min-confidence: 0.85
+  min-confidence: 0.9
   timeout-seconds: 12
   cooldown-seconds: 20    # minimum time between two reviews of the same player
   on-failure: alert       # alert = no punishment if the AI cannot be reached, punish = run the action anyway
@@ -129,6 +129,7 @@ review:
       cps: 18                   # clicks per second
       reach: 3.6                # blocks
       instant-ratio: 0.6        # share of instant hits (together with a still mouse)
+    max-ping-swing: 70          # ms; when the ping moved more than this in the window (lag spike, bad connection) the AI is not asked and its ban is dropped
 
 packetevents:
   enabled: true           # use PacketEvents (if installed) for millisecond-accurate mouse-movement timing

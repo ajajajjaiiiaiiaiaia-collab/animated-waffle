@@ -186,6 +186,17 @@ final class Evidence
             }
         }
 
+        int pingMin = Integer.MAX_VALUE;
+        int pingMax = 0;
+
+        for (Frame f : list)
+        {
+            pingMin = Math.min(pingMin, f.ping());
+            pingMax = Math.max(pingMax, f.ping());
+        }
+
+        s.addProperty("ping_min_ms_in_window", list.isEmpty() ? 0 : pingMin);
+        s.addProperty("ping_max_ms_in_window", pingMax);
         s.addProperty("frames_recorded", list.size());
         s.addProperty("frames_with_target", withTarget);
         s.addProperty("max_rotation_speed_deg_per_tick", r(maxSpeed, 1));
