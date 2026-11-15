@@ -36,9 +36,10 @@ final class AiReviewer
         - Strafing and close fights produce natural big rotation changes; smooth, gradual angle error reduction is normal.
         - Attacks closer than 1.5 blocks are left out of the statistics because the angle is meaningless when the target overlaps the attacker (attacks_ignored_closer_than_1_5_blocks says how many).
         - Distances are measured on the server. With ping around 100ms a legitimate attacker can appear up to about 0.5 blocks beyond the real reach limit of 3.0, so only distances clearly above 3.6 count as reach evidence.
-        - frames cover only the last frame_window_seconds, attacks cover attack_window_seconds (see seconds_ago on each attack). They are not the same moment and attacks may belong to different fights.
-        - Count only what the statistics say. Do not claim "X of Y attacks" with numbers that are not in the evidence.
-        - A handful of attacks is weak evidence. A banned innocent player is much worse than a missed cheater, so be conservative.
+        - frames cover only the last frame_window_seconds, attacks cover attack_window_seconds (see seconds_ago on each attack).
+        - attacks_scoped_to_single_victim tells you whether every attack in this evidence is against the same victim (true, victim_filter names them) or may include several different victims from separate fights (false). The summary statistics (attacks_recorded, attacks_off_victim_server_ray, etc.) are totals across whatever attacks are included — when attacks_scoped_to_single_victim is false, treat those totals as describing a mix of fights, not one continuous engagement, and say so in your reasons; do not describe them as "X of Y hits in a fight" unless scoped is true. Check the victim field on individual attacks if you need to know which fight a specific one belongs to.
+        - Count only what the statistics say. Do not claim "X of Y attacks" with numbers that are not in the evidence, and do not present a cross-fight total as if it were one fight.
+        - A handful of attacks is weak evidence, and a handful of attacks spread across different victims is weaker still. A banned innocent player is much worse than a missed cheater, so be conservative. If attacks_scoped_to_single_victim is false and the evidence does not clearly hold up fight-by-fight, prefer "uncertain" over "cheating".
         Reply with ONLY one JSON object and nothing else:
         {"verdict":"cheating"|"legit"|"uncertain","confidence":0.0-1.0,"cheat_type":"triggerbot"|"killaura"|"aim_assist"|"autoclicker"|"reach"|"other"|"none","reasons":["short concrete reason citing numbers from the evidence", "..."]}
         Use "cheating" only when several independent signals agree and lag or knockback cannot explain them.

@@ -755,6 +755,27 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     }
 
     /**
+     * Same as recentAttacks, but restricted to one victim. Mixing attacks against different
+     * victims into one statistics blob is what let the AI see things like "23 of 40 hits" that
+     * were actually several unrelated fights stitched together — a single continuous fight is the
+     * only thing the evidence (and the AI reading it) should ever be scored against.
+     */
+    private List<Evidence.AttackRec> recentAttacksAgainst(PlayerState state, int nowTick, String victimName)
+    {
+        List<Evidence.AttackRec> recent = new ArrayList<>();
+
+        for (Evidence.AttackRec attack : state.attackLog)
+        {
+            if (nowTick - attack.tick() <= this.evidenceAttackTicks && attack.victim().equals(victimName))
+            {
+                recent.add(attack);
+            }
+        }
+
+        return recent;
+    }
+
+    /**
      * AI-primary mode: loose, cheap gates decide whether a fight looks suspicious at all.
      * Only then is the AI asked, so ordinary fights cost nothing. The AI decides, not the VL.
      */
@@ -773,8 +794,17 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
 
         state.lastScreenCheck = ms;
+        int nowTick = Bukkit.getCurrentTick();
+        Evidence.AttackRec last = state.attackLog.peekLast();
 
-        List<Evidence.AttackRec> recent = this.recentAttacks(state, Bukkit.getCurrentTick());
+        if (last == null)
+        {
+            return;
+        }
+
+        // Scope to the victim of the most recent attack, so a player who fought several people in
+        // this window is judged on one continuous fight at a time, never on a blended total.
+        List<Evidence.AttackRec> recent = this.recentAttacksAgainst(state, nowTick, last.victim());
 
         if (recent.size() < 4 || this.skipReason(player) != null)
         {
@@ -836,7 +866,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         state.lastScreenMillis = ms;
         state.lastReviewMillis = ms;
         String name = player.getName();
-        String evidence = this.buildEvidence(player, state, "ai-screen", String.join(", ", why)).toString();
+        String evidence = this.buildEvidence(player, state, "ai-screen", String.join(", ", why), last.victim()).toString();
 
         Bukkit.getScheduler().runTaskAsynchronously(this, () ->
         {
@@ -899,6 +929,16 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
     private JsonObject buildEvidence(Player player, PlayerState state, String type, String detail)
     {
+        return this.buildEvidence(player, state, type, detail, null);
+    }
+
+    /**
+     * victimFilter, when non-null, restricts the attacks (and the stats computed from them) to that
+     * one victim, so the evidence describes a single continuous fight instead of silently combining
+     * separate fights against different people into one blended attack count.
+     */
+    private JsonObject buildEvidence(Player player, PlayerState state, String type, String detail, String victimFilter)
+    {
         JsonObject root = new JsonObject();
         root.addProperty("plugin_version", this.getPluginMeta().getVersion());
         root.addProperty("player", player.getName());
@@ -933,9 +973,18 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         root.add("thresholds", th);
 
         int nowTick = Bukkit.getCurrentTick();
-        List<Evidence.AttackRec> recent = this.recentAttacks(state, nowTick);
+        List<Evidence.AttackRec> recent = victimFilter == null
+            ? this.recentAttacks(state, nowTick)
+            : this.recentAttacksAgainst(state, nowTick, victimFilter);
         root.addProperty("frame_window_seconds", this.evidenceTicks / 20);
         root.addProperty("attack_window_seconds", this.evidenceAttackTicks / 20);
+        root.addProperty("attacks_scoped_to_single_victim", victimFilter != null);
+
+        if (victimFilter != null)
+        {
+            root.addProperty("victim_filter", victimFilter);
+        }
+
         root.add("stats", Evidence.stats(state.frames, recent));
 
         JsonArray history = new JsonArray();
@@ -1029,7 +1078,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         state.reviewPending = true;
         state.lastReviewMillis = now;
         String name = player.getName();
-        String evidence = this.buildEvidence(player, state, "punish-review", "action at VL " + action.vl()).toString();
+        Evidence.AttackRec lastAttack = state.attackLog.peekLast();
+        String victim = lastAttack == null ? null : lastAttack.victim();
+        String evidence = this.buildEvidence(player, state, "punish-review", "action at VL " + action.vl(), victim).toString();
         this.alertStaff("&7AI is reviewing &f" + name + " &7before the action at VL " + action.vl() + "...");
 
         Bukkit.getScheduler().runTaskAsynchronously(this, () ->
