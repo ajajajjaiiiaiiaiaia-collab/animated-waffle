@@ -8,6 +8,10 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -15,7 +19,7 @@ import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.ItemStack;
 
 /**
- * يمنع استخدام الأيتمات (إندر بيرل، تفاح ذهبي، أكل، بوشن، قوس، ثلج...) أثناء العدّ التنازلي.
+ * يمنع البناء والتكسير واستخدام الأيتمات (إندر بيرل، تفاح ذهبي، أكل، بوشن، قوس، ثلج...) أثناء العدّ التنازلي.
  * اللاعب المجمّد = walkSpeed 0 (نفس شرط onFrozenJump في DuelListener)، يشمل 1v1 وParty وFFA وبين الرواندات.
  */
 public class FrozenItemListener implements Listener {
@@ -46,6 +50,8 @@ public class FrozenItemListener implements Listener {
                 || m == Material.SPLASH_POTION
                 || m == Material.LINGERING_POTION
                 || m == Material.SHIELD
+                || m == Material.END_CRYSTAL
+                || m == Material.FLINT_AND_STEEL
                 || n.endsWith("_BUCKET");
     }
 
@@ -73,5 +79,26 @@ public class FrozenItemListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onShoot(EntityShootBowEvent event) {
         if (event.getEntity() instanceof Player p && frozen(p)) event.setCancelled(true);
+    }
+
+    // LOWEST: نلغي قبل ما DuelListener يتتبّع البلوكة (هو ignoreCancelled فما يتتبّع الملغي)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onPlace(BlockPlaceEvent event) {
+        if (frozen(event.getPlayer())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onBreak(BlockBreakEvent event) {
+        if (frozen(event.getPlayer())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
+        if (frozen(event.getPlayer())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onBucketFill(PlayerBucketFillEvent event) {
+        if (frozen(event.getPlayer())) event.setCancelled(true);
     }
 }
