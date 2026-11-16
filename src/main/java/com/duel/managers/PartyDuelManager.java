@@ -645,7 +645,7 @@ public class PartyDuelManager {
 
     /** إصلاح 4: makeSpectator — يحوّل اللاعب spectator ويُنقله للسبون لو المباراة انتهت */
     private void makeSpectator(Player p, PartyDuelSession session) {
-        p.getInventory().clear();
+        p.getInventory().clear(); p.setItemOnCursor(null);
         // متفرج طائر (سيرفايفل + بوصلة) بدل gamemode spectator — بعد الريسباون بـ 3 ticks
         plugin.getFlySpectatorManager().scheduleEnter(p, 3L);
 
@@ -719,7 +719,7 @@ public class PartyDuelManager {
             }
             for (Player p : session.getAllPlayers()) {
                 if (!p.isOnline() || session.hasLeftEarly(p)) continue;
-                p.getInventory().clear();
+                p.getInventory().clear(); p.setItemOnCursor(null);
                 plugin.getFlySpectatorManager().exit(p);
                 p.setGameMode(GameMode.SURVIVAL);
                 plugin.getArenaManager().clearArenaPotions(p);
@@ -801,7 +801,7 @@ public class PartyDuelManager {
             p.setWalkSpeed(0.2f);
             p.setFlySpeed(0.1f);
             p.setInvulnerable(false);
-            p.getInventory().clear();
+            p.getInventory().clear(); p.setItemOnCursor(null);
             plugin.getFlySpectatorManager().exit(p);
             p.setGameMode(GameMode.SURVIVAL);
             plugin.getArenaManager().clearArenaPotions(p);
@@ -879,7 +879,7 @@ public class PartyDuelManager {
         p.setWalkSpeed(0.2f);
         p.setFlySpeed(0.1f);
         p.setInvulnerable(false);
-        p.getInventory().clear();
+        p.getInventory().clear(); p.setItemOnCursor(null);
         plugin.getFlySpectatorManager().exit(p);
         p.setGameMode(GameMode.SURVIVAL);
         plugin.getArenaManager().clearArenaPotions(p);
@@ -901,7 +901,7 @@ public class PartyDuelManager {
                 p.setWalkSpeed(0.2f);
                 p.setFlySpeed(0.1f);
                 p.setInvulnerable(false);
-                p.getInventory().clear();
+                p.getInventory().clear(); p.setItemOnCursor(null);
                 plugin.getFlySpectatorManager().exit(p);
                 p.setGameMode(org.bukkit.GameMode.SURVIVAL);
                 plugin.getArenaManager().clearArenaPotions(p);
@@ -992,7 +992,7 @@ public class PartyDuelManager {
         org.bukkit.inventory.ItemStack[] personal =
                 plugin.getPlayerKitManager().getPlayerKit(player.getUniqueId(), arenaId);
         if (personal != null) {
-            player.getInventory().clear();
+            player.getInventory().clear(); player.setItemOnCursor(null);
             Kit personalKit = new Kit("__personal__", personal);
             plugin.getKitManager().applyKit(player, personalKit);
         } else if (defaultKit != null) {

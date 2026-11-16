@@ -82,7 +82,7 @@ public class KitManager {
     }
 
     public void applyKit(Player player, Kit kit) {
-        player.getInventory().clear();
+        player.getInventory().clear(); player.setItemOnCursor(null);
         ItemStack[] contents = kit.getContents();
 
         for (int i = 0; i <= 35 && i < contents.length; i++) {

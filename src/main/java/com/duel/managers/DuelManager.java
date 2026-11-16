@@ -968,11 +968,11 @@ public class DuelManager {
 
         // ── Clear inventories immediately so kit doesn't carry over to spawn ──
         if (winner.isOnline()) {
-            winner.getInventory().clear();
+            winner.getInventory().clear(); winner.setItemOnCursor(null);
             giveWinnerFlight(winner); // سيرفايفل + يقدر يطير لين ينقل للسبون
         }
         if (loser.isOnline()) {
-            loser.getInventory().clear();
+            loser.getInventory().clear(); loser.setItemOnCursor(null);
             // الخاسر سبكتر عادي (بدون بوصلة/ريشة)
             makeDeadSpectator(loser);
             detachSpectatorCamera(loser, Math.max(20L, plugin.getConfig().getInt("settings.loser-spectator-seconds", 5) * 20L));
@@ -1141,7 +1141,7 @@ public class DuelManager {
 
         if (personal != null) {
             // Apply personal arrangement directly
-            player.getInventory().clear();
+            player.getInventory().clear(); player.setItemOnCursor(null);
             com.duel.models.Kit personalKit = new com.duel.models.Kit("__personal__", personal);
             plugin.getKitManager().applyKit(player, personalKit);
         } else if (defaultKit != null) {
