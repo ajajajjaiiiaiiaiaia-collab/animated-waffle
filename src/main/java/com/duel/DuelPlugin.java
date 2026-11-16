@@ -204,6 +204,7 @@ public class DuelPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new InventoryListener(this), this);
         getServer().getPluginManager().registerEvents(new com.duel.listeners.RoundsAnvilListener(this), this);
         getServer().getPluginManager().registerEvents(new DuelListener(this), this);
+        getServer().getPluginManager().registerEvents(new com.duel.listeners.FrozenItemListener(), this);
         getServer().getPluginManager().registerEvents(new com.duel.listeners.WorldDirtyListener(this), this);
         getServer().getPluginManager().registerEvents(new ChatListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerSettingsListener(this), this);
