@@ -69,6 +69,7 @@ elytratarget:
   max-mean-ticks: 18      # average ticks between rockets must be at most this
   max-stddev-ticks: 1.5   # humans vary by several ticks; a bot varies by about 0 to 1
   swap-cycles: 3          # slot swap -> rocket -> swap back cycles needed
+  require-lock: true
   vl: 2.0
   cooldown-seconds: 10
   commands:             # run at once on a flag, instead of the punish ladder and the AI (needs punish.enabled)

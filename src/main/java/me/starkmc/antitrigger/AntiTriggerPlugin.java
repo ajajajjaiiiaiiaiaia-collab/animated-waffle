@@ -138,6 +138,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private double elytraMinMean;
     private int elytraSwapCycles;
     private double elytraVl;
+    private boolean elytraRequireLock = true;
     private int elytraCooldownTicks;
     private List<String> elytraCommands = new ArrayList<>();
     private String elytraAlertFormat;
@@ -319,6 +320,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.elytraMinMean = Math.max(0.0, c.getDouble("elytratarget.min-mean-ticks", 6.0));
         this.elytraSwapCycles = Math.max(2, c.getInt("elytratarget.swap-cycles", 3));
         this.elytraVl = c.getDouble("elytratarget.vl", 2.0);
+        this.elytraRequireLock = c.getBoolean("elytratarget.require-lock", true);
         this.elytraCooldownTicks = Math.max(20, c.getInt("elytratarget.cooldown-seconds", 10) * 20);
         this.elytraCommands = new ArrayList<>(c.getStringList("elytratarget.commands"));
         this.aimEnabled = c.getBoolean("aimassist.enabled", true);
@@ -1196,7 +1198,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         boolean lock = now - state.lastLockTick <= this.elytraWindowTicks;
 
         // A machine-regular rocket rhythm is required. Locking on an enemy and swapping slots are things skilled players do too.
-        if (regular && (lock || swapPattern))
+        if (regular && (lock || (swapPattern && !this.elytraRequireLock)))
         {
             state.lastElytraFlagTick = now;
             this.flagElytra(player, state, (int)bs[0], bs[1], bs[2], state.swapCycles.size(), lock);
