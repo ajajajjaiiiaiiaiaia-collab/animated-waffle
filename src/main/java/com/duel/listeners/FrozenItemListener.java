@@ -8,6 +8,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
@@ -23,6 +28,16 @@ import org.bukkit.inventory.ItemStack;
  * اللاعب المجمّد = walkSpeed 0 (نفس شرط onFrozenJump في DuelListener)، يشمل 1v1 وParty وFFA وبين الرواندات.
  */
 public class FrozenItemListener implements Listener {
+
+    private final com.duel.DuelPlugin plugin;
+
+    public FrozenItemListener(com.duel.DuelPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    private boolean locked(org.bukkit.entity.HumanEntity h) {
+        return h instanceof Player p && plugin.getRoundPullManager().isLocked(p);
+    }
 
     private static boolean frozen(Player p) {
         return p != null && p.getWalkSpeed() == 0f && p.getGameMode() != GameMode.SPECTATOR;
@@ -100,5 +115,31 @@ public class FrozenItemListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onBucketFill(PlayerBucketFillEvent event) {
         if (frozen(event.getPlayer())) event.setCancelled(true);
+    }
+
+    // مشهد بين الرواندات: ممنوع فتح/تحريك الانفنتوري أو رمي الأيتمات (كان اللاعب يشيل أيتم للهوا ويحتفظ فيه للراوند الجاي)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInvOpen(InventoryOpenEvent event) {
+        if (locked(event.getPlayer())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInvClick(InventoryClickEvent event) {
+        if (locked(event.getWhoClicked())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInvDrag(InventoryDragEvent event) {
+        if (locked(event.getWhoClicked())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onDrop(PlayerDropItemEvent event) {
+        if (locked(event.getPlayer())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onSwapHands(PlayerSwapHandItemsEvent event) {
+        if (locked(event.getPlayer())) event.setCancelled(true);
     }
 }

@@ -107,6 +107,8 @@ public class RoundPullManager {
             for (org.bukkit.potion.PotionEffect e : new java.util.ArrayList<>(pl.getActivePotionEffects())) {
                 pl.removePotionEffect(e.getType());
             }
+            pl.setItemOnCursor(null);
+            pl.closeInventory();
             pl.setInvulnerable(true);
             pl.setAllowFlight(true);
             pl.setFlying(true);
