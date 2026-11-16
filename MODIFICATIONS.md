@@ -1,0 +1,4 @@
+Modified build of GrimAC 2.3.75 (upstream commit 8ec9b7d, GPL-3.0-or-later).
+Change: Reach and Hitboxes checks are skipped while the player holds a spear and for 5 ticks afterwards
+(common/src/main/java/ac/grim/grimac/checks/impl/combat/Reach.java).
+Upstream: https://github.com/GrimAnticheat/Grim

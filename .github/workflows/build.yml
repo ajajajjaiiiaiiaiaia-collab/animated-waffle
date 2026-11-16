@@ -1,0 +1,38 @@
+name: Build Grim
+
+on:
+  push:
+    branches: [grim]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build Bukkit jar
+        run: ./gradlew :bukkit:shadowJar --no-daemon
+      - name: Pick jar
+        run: |
+          JAR=$(ls bukkit/build/libs/*.jar | grep -v -E 'sources|javadoc|plain' | head -n1)
+          echo "Built: $JAR"
+          cp "$JAR" Grim-NoSpear.jar
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete grim-latest --cleanup-tag --yes || true
+          gh release create grim-latest Grim-NoSpear.jar \
+            --title "Grim 2.3.75 + spear exemption (latest build)" \
+            --notes "Grim 2.3.75-8ec9b7d with Reach/Hitboxes skipped while holding a spear and for 5 ticks after. Commit ${GITHUB_SHA::7}" \
+            --target "$GITHUB_SHA"
