@@ -33,6 +33,6 @@ jobs:
         run: |
           gh release delete grim-latest --cleanup-tag --yes || true
           gh release create grim-latest Grim-NoSpear.jar \
-            --title "Grim 2.3.75 + spear exemption (latest build)" \
-            --notes "Grim 2.3.75-8ec9b7d with Reach/Hitboxes skipped while holding a spear and for 5 ticks after. Commit ${GITHUB_SHA::7}" \
+            --title "Grim 2.3.75 + spear/end crystal exemption (latest build)" \
+            --notes "Grim 2.3.75-8ec9b7d with Reach/Hitboxes skipped while holding a spear or an end crystal and for 5 ticks after. Commit ${GITHUB_SHA::7}" \
             --target "$GITHUB_SHA"

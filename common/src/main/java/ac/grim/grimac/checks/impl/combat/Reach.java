@@ -38,6 +38,7 @@ import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemAtt
 import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
+import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import com.github.retrooper.packetevents.protocol.player.GameMode;
@@ -71,9 +72,9 @@ public class Reach extends Check implements PacketReceiveListener {
     private boolean cancelImpossibleHits;
     private double threshold;
     private double cancelBuffer; // For the next 4 hits after using reach, we aggressively cancel reach
-    // Ticks since the player last had a spear in hand. Reach/Hitboxes are skipped while holding one and for 5 ticks after.
-    private static final int SPEAR_GRACE_TICKS = 5;
-    private int ticksSinceSpear = 1000;
+    // Ticks since the player last had a spear or an end crystal in hand. Reach/Hitboxes are skipped while holding one and for 5 ticks after.
+    private static final int EXEMPT_GRACE_TICKS = 5;
+    private int ticksSinceExemptItem = 1000;
 
     public Reach(GrimPlayer player) {
         super(player);
@@ -93,17 +94,18 @@ public class Reach extends Check implements PacketReceiveListener {
 
         // If the player set their look, or we know they have a new tick
         if (isUpdate(event.getPacketType())) {
-            if (isSpear(player.inventory.getHeldItem())) {
-                ticksSinceSpear = 0;
-            } else if (ticksSinceSpear < 1000) {
-                ticksSinceSpear++;
+            if (isExemptItem(player.inventory.getHeldItem())) {
+                ticksSinceExemptItem = 0;
+            } else if (ticksSinceExemptItem < 1000) {
+                ticksSinceExemptItem++;
             }
             tickBetterReachCheckWithAngle();
         }
     }
 
-    private static boolean isSpear(ItemStack stack) {
+    private static boolean isExemptItem(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return false;
+        if (stack.is(ItemTypes.END_CRYSTAL)) return true;
         if (stack.hasComponent(ComponentTypes.PIERCING_WEAPON)) return true;
         return stack.getType().getName().getKey().endsWith("_spear");
     }
@@ -142,8 +144,8 @@ public class Reach extends Check implements PacketReceiveListener {
             return;
         if (player.inVehicle()) return;
         if (entity.riding != null) return;
-        // Spear in hand (or in hand during the last 5 ticks): no Reach / Hitboxes checks
-        if (isSpear(player.inventory.getHeldItem()) || isSpear(player.inventory.getItemInHand(hand)) || ticksSinceSpear <= SPEAR_GRACE_TICKS)
+        // Spear or end crystal in hand (or in hand during the last 5 ticks): no Reach / Hitboxes checks
+        if (isExemptItem(player.inventory.getHeldItem()) || isExemptItem(player.inventory.getItemInHand(hand)) || ticksSinceExemptItem <= EXEMPT_GRACE_TICKS)
             return;
 
         ItemStack currentStack = player.inventory.getItemInHand(hand);
