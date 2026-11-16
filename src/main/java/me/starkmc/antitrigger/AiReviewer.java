@@ -11,6 +11,9 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /** Asks the Anthropic Messages API for a second opinion on a flagged player. Blocking: call it off the main thread. */
 final class AiReviewer
@@ -55,7 +58,110 @@ final class AiReviewer
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
+    static final class ApiFailure extends IllegalStateException
+    {
+        final int status;
+
+        ApiFailure(int status, String message)
+        {
+            super(message);
+            this.status = status;
+        }
+    }
+
+    private volatile List<String> keys = List.of();
+    private volatile long exhaustedMs = 30L * 60000L;
+    private final Map<String, Long> coolingUntil = new ConcurrentHashMap<>();
+    volatile Consumer<String> notice = s ->
+    {
+    };
+
+    /** Keys are tried in this order; a key that runs out of quota (or is rejected) is skipped for a while, then tried again first. */
+    void setKeys(List<String> list, long exhaustedMinutes)
+    {
+        this.keys = List.copyOf(list);
+        this.exhaustedMs = Math.max(1L, exhaustedMinutes) * 60000L;
+        this.coolingUntil.keySet().retainAll(list);
+    }
+
+    private static String mask(String key)
+    {
+        return key.length() <= 6 ? "****" : key.substring(0, 4) + "****" + key.substring(key.length() - 2);
+    }
+
+    private static boolean keyProblem(int status, String message)
+    {
+        return status == 429 || status == 401 || status == 403 || (status == 400 && message != null && (message.contains("API key") || message.contains("API_KEY")));
+    }
+
     Verdict review(String provider, String apiKey, String model, int timeoutSeconds, String evidenceJson)
+    {
+        List<String> pool = this.keys;
+
+        if (pool.isEmpty())
+        {
+            return this.reviewWith(provider, apiKey, model, timeoutSeconds, evidenceJson, new int[1]);
+        }
+
+        Verdict last = null;
+        long now = System.currentTimeMillis();
+        long soonest = Long.MAX_VALUE;
+
+        for (int i = 0; i < pool.size(); i++)
+        {
+            String key = pool.get(i);
+            Long until = this.coolingUntil.get(key);
+
+            if (until != null && until > now)
+            {
+                soonest = Math.min(soonest, until);
+                continue;
+            }
+
+            int[] status = new int[1];
+            Verdict v = this.reviewWith(provider, key, model, timeoutSeconds, evidenceJson, status);
+
+            if (v.error() == null || !keyProblem(status[0], v.error()))
+            {
+                return v;
+            }
+
+            long hold = status[0] == 429 ? this.exhaustedMs : Math.max(this.exhaustedMs, 6L * 3600000L);
+            this.coolingUntil.put(key, System.currentTimeMillis() + hold);
+            soonest = Math.min(soonest, System.currentTimeMillis() + hold);
+            last = v;
+            this.notice.accept("AI key #" + (i + 1) + " (" + mask(key) + ") " + (status[0] == 429 ? "ran out of quota" : "was rejected") + " (HTTP " + status[0] + "), switching to the next key");
+        }
+
+        long minutes = soonest == Long.MAX_VALUE ? 0L : Math.max(1L, (soonest - System.currentTimeMillis()) / 60000L);
+        return failure("All " + pool.size() + " AI keys are exhausted or rejected, next one is free in about " + minutes + " min" + (last == null ? "" : " (last error: " + last.error() + ")"));
+    }
+
+    boolean hasKeyAvailable()
+    {
+        List<String> pool = this.keys;
+
+        if (pool.isEmpty())
+        {
+            return true;
+        }
+
+        long now = System.currentTimeMillis();
+
+        for (String key : pool)
+        {
+            Long until = this.coolingUntil.get(key);
+
+            if (until == null || until <= now)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private Verdict reviewWith(String provider, String apiKey, String model, int timeoutSeconds, String evidenceJson, int[] statusOut)
     {
         try
         {
@@ -97,6 +203,11 @@ final class AiReviewer
             if (ex instanceof InterruptedException)
             {
                 Thread.currentThread().interrupt();
+            }
+
+            if (ex instanceof ApiFailure af)
+            {
+                statusOut[0] = af.status;
             }
 
             return failure(ex.getClass().getSimpleName() + ": " + ex.getMessage());
@@ -206,7 +317,7 @@ final class AiReviewer
         if (response.statusCode() != 200)
         {
             String text = response.body() == null ? "" : response.body();
-            throw new IllegalStateException("HTTP " + response.statusCode() + " " + (text.length() > 200 ? text.substring(0, 200) : text));
+            throw new ApiFailure(response.statusCode(), "HTTP " + response.statusCode() + " " + (text.length() > 200 ? text.substring(0, 200) : text));
         }
     }
 

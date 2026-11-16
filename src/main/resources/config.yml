@@ -112,6 +112,8 @@ review:
   mode: primary
   provider: gemini        # gemini or anthropic
   api-key: ""
+  api-keys: []            # extra keys, tried in order: the first one is used until its quota runs out, then the next one
+  key-cooldown-minutes: 30    # how long a key that ran out of quota is skipped before it is tried again
   model: ""               # empty = default for the provider (gemini-3.6-flash / claude-sonnet-5-5)
   min-confidence: 0.9
   timeout-seconds: 12

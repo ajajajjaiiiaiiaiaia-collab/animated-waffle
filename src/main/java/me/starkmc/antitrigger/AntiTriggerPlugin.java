@@ -107,6 +107,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int evidenceKeepFiles;
     private boolean reviewEnabled;
     private String reviewApiKey;
+    private List<String> reviewApiKeys = new ArrayList<>();
     private String reviewProvider;
     private String reviewModel;
     private double reviewMinConfidence;
@@ -290,6 +291,31 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.evidenceKeepFiles = Math.max(10, c.getInt("evidence.keep-files", 300));
         this.reviewEnabled = c.getBoolean("review.enabled", false);
         this.reviewApiKey = c.getString("review.api-key", "");
+        List<String> pool = new ArrayList<>();
+        String single = this.reviewApiKey == null ? "" : this.reviewApiKey.trim();
+
+        if (!single.isEmpty())
+        {
+            pool.add(single);
+        }
+
+        for (String k : c.getStringList("review.api-keys"))
+        {
+            String t = k == null ? "" : k.trim();
+
+            if (!t.isEmpty() && !pool.contains(t))
+            {
+                pool.add(t);
+            }
+        }
+
+        this.reviewApiKeys = pool;
+        this.reviewer.setKeys(pool.size() > 1 || !c.getStringList("review.api-keys").isEmpty() ? pool : List.of(), c.getLong("review.key-cooldown-minutes", 30L));
+        this.reviewer.notice = line ->
+        {
+            this.getLogger().warning(line);
+            this.writeLog(line);
+        };
         this.reviewProvider = "gemini".equalsIgnoreCase(c.getString("review.provider", "anthropic")) ? "gemini" : "anthropic";
         String configuredModel = c.getString("review.model", "");
         this.reviewModel = configuredModel == null || configuredModel.isBlank() ? ("gemini".equals(this.reviewProvider) ? "gemini-3.6-flash" : "claude-sonnet-5-5") : configuredModel.trim();
@@ -721,7 +747,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
     private String apiKey()
     {
-        String key = this.reviewApiKey == null ? "" : this.reviewApiKey.trim();
+        String key = this.reviewApiKeys.isEmpty() ? "" : this.reviewApiKeys.get(0);
 
         if (key.isEmpty())
         {
@@ -1936,24 +1962,32 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
                 Bukkit.getScheduler().runTaskAsynchronously(this, () ->
                 {
                     long t0 = System.currentTimeMillis();
-                    boolean ok1;
-                    String step1;
+                    boolean ok1 = false;
+                    List<String> testKeys = this.reviewApiKeys.isEmpty() ? List.of(key) : new ArrayList<>(this.reviewApiKeys);
 
-                    try
+                    for (int ki = 0; ki < testKeys.size(); ki++)
                     {
-                        AiReviewer.Check check = this.reviewer.checkAccess(provider, key, model, 10);
-                        ok1 = true;
-                        step1 = "&a\u2714 step 1: key and network OK (" + (System.currentTimeMillis() - t0) + "ms, " + check.count() + " models listed, model '" + model + "' " + (check.modelFound() ? "found" : "NOT in the list - check review.model") + ")";
-                    }
-                    catch (Exception ex)
-                    {
-                        ok1 = false;
-                        step1 = "&c\u2716 step 1 failed after " + (System.currentTimeMillis() - t0) + "ms (key or network): " + ex.getClass().getSimpleName() + ": " + ex.getMessage();
+                        String k = testKeys.get(ki);
+                        String shown = "key #" + (ki + 1) + " (" + k.substring(0, Math.min(4, k.length())) + "****)";
+                        String step1;
+                        long tk = System.currentTimeMillis();
+
+                        try
+                        {
+                            AiReviewer.Check check = this.reviewer.checkAccess(provider, k, model, 10);
+                            ok1 = true;
+                            step1 = "&a\u2714 " + shown + " OK (" + (System.currentTimeMillis() - tk) + "ms, " + check.count() + " models listed, model '" + model + "' " + (check.modelFound() ? "found" : "NOT in the list - check review.model") + ")";
+                        }
+                        catch (Exception ex)
+                        {
+                            step1 = "&c\u2716 " + shown + " failed after " + (System.currentTimeMillis() - tk) + "ms: " + ex.getClass().getSimpleName() + ": " + ex.getMessage();
+                        }
+
+                        String line1 = step1;
+                        Bukkit.getScheduler().runTask(this, () -> sender.sendMessage(this.legacy.deserialize(this.prefix + line1)));
                     }
 
-                    String line1 = step1;
                     boolean proceed = ok1;
-                    Bukkit.getScheduler().runTask(this, () -> sender.sendMessage(this.legacy.deserialize(this.prefix + line1)));
 
                     if (!proceed)
                     {
