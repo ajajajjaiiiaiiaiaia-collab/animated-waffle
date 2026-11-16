@@ -1,0 +1,311 @@
+settings:
+  duel-item-slot: 4
+  countdown-seconds: 5
+  winner-delay-seconds: 5
+  loser-spectator-seconds: 5
+  party-drop-loot: true
+  arena-copy-prefix: "duel_arena_"
+  hide-join-quit-messages: true
+
+# رسبن البارتي (FFA) — الماب الدائري
+# البوردر في ماين كرافت مربع، فأي ماب دائري لازم تضيفه هنا باسم الـ world (نفس اسم الماب في الأرينا).
+# x / z / radius اختيارية: لو تركتها فاضية = مركز البوردر ونصف حجمه.
+party-respawn:
+  # أقصى فرق في الارتفاع عن نقاط 1v1 (0 = نفس Y بالضبط)
+  vertical-range: 0
+  # عوالم (ماب) فيها زجاج حوالين الأرينا: لاعبين الـ FFA يرسبنون داخل الزجاج فقط (يطبق على كل أنواع الزجاج)
+  # صيغة "Arena:world" = الماب في أرينا معينة فقط، أو "world" لحاله = في كل الأرينات
+  glass-worlds:
+    - "mapp5"   # ماب End في كل الأرينات
+  circles: {}
+  # مثال:
+  # circles:
+  #   MyCircleMap:
+  #     x: 0.5
+  #     z: 0.5
+  #     radius: 40
+
+# حارس البوردر: يمنع لاعب المباراة يقرّب من حافة البوردر أقل من min-distance بلوك
+border-guard:
+  enabled: true
+  min-distance: 1.0
+
+# بارير بدل البوردر: جدار بلوكات بارير مخفية على حافة البوردر، والبوردر الحقيقي يتكبّر عشان ما يبان
+barrier-border:
+  enabled: true
+  height-below: 15      # من ارتفاع الـ spawn لتحت
+  keep-terrain: true    # البارير ينحط بس مكان الهواء/الماء — ما يحفر الأرض ولا يخرّب شكلها
+  height-above: 60      # من ارتفاع الـ spawn لفوق
+  auto-build: true      # تلقائي: بعد أول ماتش على الماب يبني البارير في القالب ويشيل بوردره (بدون /duelbarrier)
+  auto-build-after-matches: 1   # كم ماتش لازم يصير على الماب قبل التحويل
+
+# الرواندات
+rounds:
+  break-seconds: 8                   # مدة الاستراحة = مدة المشهد السينمائي (ارتفاع → مواجهة → سحب). أقل من 6 ثواني يضغط المشهد
+  new-world-per-round: true
+  same-world: true                   # دائماً نفس العالم بين الرواندات: البلوكات (مكسورة/مبنية/ماء/انفجار/نار) ترجع واللاعبين ينسحبون لنقاط السبون. false = عالم جديد لكل راوند
+  cinematic:
+    rise-height: 10                  # ارتفاع القمة فوق السبون (بلوك) — ينقص تلقائياً لو فيه سقف
+    gap: 3.0                         # المسافة بين اللاعبين وهم يتواجهون فوق
+    dynamic: true                    # يضبط المشهد حسب حجم الأرينا: يمدّد الوقت لو المسار طويل، ويقصّر الارتفاع لو ما كفى
+    max-extra-seconds: 6             # أقصى تمديد فوق break-seconds للأرينات الكبيرة
+  pull-max-speed: 0.8                # أقصى سرعة سحب (بلوك/tick)
+
+# تحميل شنكات الأرينا async قبل الـ teleport (يقلل اللاق وقت بداية الماتش/الراوند)
+chunk-preload:
+  enabled: true
+  radius: 4            # شنك حول كل spawn
+  max-chunks: 400      # سقف الشنكات لكل عالم (الـ FFA يحمّل كل البوردر لو أقل من هذا الرقم)
+  timeout-ticks: 100   # لو التحميل تأخر نكمّل بدونه
+  hold-ticks: 100      # كم نثبّت الشنكات بعد الـ teleport
+
+world-pool:
+  enabled: false
+  size: 10
+  fill-interval-seconds: 5
+  startup-delay-seconds: 10
+  delete-on-shutdown: true
+
+messages:
+  prefix: "&8[&bDuel&8] &r"
+  winner-title: "&aVICTORY"
+  winner-subtitle: "&7You dominated the arena!"
+  loser-title: "&a☠ &cDEFEAT"
+  loser-subtitle: "&7Better luck next time!"
+  countdown-title: "&e{seconds}"
+  go-title: "&aGO!"
+  go-subtitle: "&7Fight!"
+
+sounds:
+  countdown: BLOCK_NOTE_BLOCK_PLING
+  go: ENTITY_ENDER_DRAGON_GROWL
+  winner: UI_TOAST_CHALLENGE_COMPLETE
+  loser: ENTITY_WITHER_DEATH
+  queue-join: ENTITY_EXPERIENCE_ORB_PICKUP
+  queue-found: BLOCK_BELL_USE
+
+scoreboard:
+  title: "&b&l⚔ &f&lSTARK DUEL &b&l⚔"
+  # placeholders: {arena} {round} {rounds} {self_score} {opp_score} {self} {opponent} {self_ping} {opponent_ping} {time}
+  lines:
+    - " &7Arena &b» &f{arena}"
+    - " &7Round &b» &e{round}&7/&e{rounds}"
+    - "&8────────────────"
+    - " &aYou &b» &a{self_score}"
+    - " &cFoe &b» &c{opp_score}"
+    - "&8────────────────"
+    - " &a{self_ping}ms &8| &c{opponent_ping}ms  &f{time}"
+
+party-scoreboard:
+  enabled: true
+  title: "&b&l⚔ &f&lPARTY &b&l⚔"
+  lines:
+    - "&8&m                    "
+    - " "
+    - "&b&l» &7Party Online&8: &a{alive}&8/&f{total}"
+    - "&b&l» &7Leader&8: &e{leader}"
+    - "&b&l» &7Arena&8: &f{arena}"
+    - "  "
+    - "&b&l» &7Ping&8: {ping}&7ms"
+    - "&b&l» &7Time&8: &f{time}"
+    - "   "
+    - "&8&m                    "
+    - "&b&ostark-mc.net"
+
+party-team-scoreboard:
+  title: "&9&l⚔ &f&lPARTY TEAM &c&l⚔"
+  lines:
+    - "&8&m                    "
+    - " "
+    - "&9&l» &9Blue Team&8: &a{blue_alive}&8/&f{blue_total}"
+    - "&c&l» &cRed Team&8: &a{red_alive}&8/&f{red_total}"
+    - "  "
+    - "&8&m                    "
+    - "&b&l» &7Ping&8: {ping}&7ms"
+    - "&b&l» &7Time&8: &f{time}"
+    - "   "
+    - "&8&m                    "
+    - "&b&ostark-mc.net"
+
+party:
+  maintenance: false
+
+party-hotbar:
+  no-party:
+    duel-slot: 4
+    create:
+      slot: 4
+      material: NAME_TAG
+      name: "&6✦ Create Party"
+      lore:
+        - "&7Click to create a party"
+        - "&7and invite your friends!"
+  leader:
+    info:
+      slot: 1
+      material: BOOK
+      name: "&b✦ Party Info"
+      lore:
+        - "&7Click to view party information."
+    other-parties:
+      slot: 3
+      material: COMPASS
+      name: "&a✦ Other Parties"
+      lore:
+        - "&7Click to view other parties."
+    ffa:
+      slot: 4
+      material: BLAZE_ROD
+      name: "&6✦ Party FFA"
+      lore:
+        - "&7Click to start FFA within your party."
+        - "&7Everyone vs Everyone!"
+    open-party:
+      slot: 5
+      material: LIME_DYE
+      name: "&a✦ Open Party"
+      lore:
+        - "&7Click to open or close your party."
+        - "&7Status: %status%"
+    disband:
+      slot: 7
+      material: FIRE_CHARGE
+      name: "&c✦ Disband Party"
+      lore:
+        - "&7Click to disband your party."
+  member:
+    info:
+      slot: 1
+      material: BOOK
+      name: "&b✦ Party Info"
+      lore:
+        - "&7Click to view party information."
+    other-parties:
+      slot: 3
+      material: COMPASS
+      name: "&a✦ Other Parties"
+      lore:
+        - "&7Click to view other parties."
+    leave:
+      slot: 5
+      material: BARRIER
+      name: "&c✦ Leave Party"
+      lore:
+        - "&7Click to leave the party."
+
+hotbar:
+  duel-menu:
+    slot: 0
+    material: IRON_SWORD
+    name: "&b⚔ Duel Menu"
+    lore:
+      - "&7Click to open the duel arena selector"
+  settings:
+    slot: 6
+    material: ANVIL
+    name: "&e⚙ Settings"
+    lore:
+      - "&7Right-click to open settings"
+  kit-editor:
+    slot: 8
+    material: BOOK
+    name: "&d✦ Kit Editor"
+    lore:
+      - "&7Right-click to customise your kit"
+      - "&7for each arena"
+  spectate:
+    slot: 2
+    material: NETHER_STAR
+    name: "&6★ Tier Top"
+    lore:
+      - "&7Right-click to open the tier leaderboard"
+      - "&7Top 10 players for every arena"
+
+spawn-fly:
+  enabled: true
+  notify-player: true
+  granted-message: "&a✔ Flight enabled — you're in the spawn world."
+  revoked-message: "&c✖ Flight disabled — you left the spawn world."
+
+country-flag:
+  enabled: true
+  api-timeout-ms: 3000
+
+# علم الدولة كرأس لاعب قبل الاسم في التاب (بدون ريسورس باك، 1.21.9+ فقط).
+# الأعلام من plugins/DuelPlugin/flags.yml
+# mode: PAPER       → البلجن يضبط اسم التاب مباشرة (لازم TAB plugin ما يتحكم بأسماء التاب)
+# mode: PLACEHOLDER → فقط %duel_flaghead% تحطه في إعدادات TAB plugin (يرجع <head_texture:HASH>)
+tab-flag:
+  enabled: true
+  mode: PLACEHOLDER
+
+# المتفرج الطائر
+spectator:
+  speed-item-slot: 8    # مكان ايتم سرعة الطيران في الهوتبار (1-8) — السلوت 0 للبوصلة
+
+# ريست التوبات الأسبوعي (كل الستاتس تتصفر، والنسخة القديمة تنحفظ في جدول stats_history)
+# يوم الجمعة 00:00 بتوقيت العراق. أول 2 في كل نوع توب عام ياخذون رتبة مؤقتة (LuckPerms) لمدة 3 أيام
+weekly-reset:
+  enabled: true
+  timezone: "Asia/Baghdad"
+  day: FRIDAY
+  time: "00:00"
+  reward:
+    rank: "stark"
+    duration: "3d"
+    top-count: 2
+    # الأنواع اللي تعطي رتبة: WINS / POINTS / STREAK / LOSSES (LOSSES مقفل افتراضياً)
+    types: [WINS, POINTS, STREAK]
+
+# الستاتس والتوبات
+stats:
+  # false = مباريات /duel (التحدي) و rematch ما تحسب على التوبات، فقط الكيو
+  count-challenges: false
+
+# ═══════════════════════════════════════════════════════════════════
+# نظام التيرات التنافسي (لكل أرينا/kit بشكل مستقل) — مباريات الكيو فقط
+# Rating مخفي (ELO) → عتبة التير التالي تفتح Rankup Challenge → الفوز = ترقية.
+# لو التقييم نزل تحت عتبة تيرك بـ defense-buffer → Tier Defense (الخسارة = نزول تير).
+# ═══════════════════════════════════════════════════════════════════
+tier:
+  enabled: true
+  start-rating: 1000
+  k-factor: 32
+  placement-matches: 3          # أول مباريات بالموسم تستخدم placement-k عشان توصل لمستواك بسرعة
+  placement-k: 40
+  rating-floor: 0
+  challenge-rounds: 3           # مباراة Rankup Challenge = كم راوند
+  challenge-cooldown-minutes: 30  # بعد خسارة التحدي، كم دقيقة قبل ما ينفتح له تحدي ثاني
+  defense-buffer: 60            # كم نقطة تحت عتبة التير قبل ما يُطلب منه دفاع
+  min-match-seconds: 10         # المباراة الأقصر من هذا ما تحسب (ما عدا مباريات الرواندات)
+  broadcast-from: LT2           # الترقية لهذا التير وفوق تنعلن بالشات
+  # الحد الأدنى للتقييم لفتح تحدي الوصول لكل تير
+  thresholds:
+    LT5: 0
+    HT5: 1050
+    LT4: 1100
+    HT4: 1175
+    LT3: 1250
+    HT3: 1350
+    LT2: 1450
+    HT2: 1575
+    LT1: 1700
+    HT1: 1850
+  matchmaking:
+    base-range: 100               # ±Elo بالبداية
+    expand-per-second: 10         # يتوسع كل ثانية انتظار
+    max-range: 600
+    any-opponent-after-seconds: 90  # بعدها أي خصم
+    special-relax-after-seconds: 45 # شرط خصم التحدي/الدفاع (تير مناسب) يتخفف بعدها
+  anti-abuse:
+    pair-limit-per-hour: 3        # بعد كذا مباراة بنفس الساعة ضد نفس اللاعب ما تغيّر التقييم
+    same-ip-unrated: true         # نفس الاتصال (IP) = ما تحسب
+  # أيقونة الكيت بالتاب قبل التير: %duel_tier_icon% (1.21.9+ بدون ريسورس باك)
+  tab-icon:
+    enabled: true
+    color: "&7"                   # لون التير بالتاب (رمادي كامل). فاضي = لون كل تير
+    atlas: "minecraft:items"      # 1.21.11 = items  (1.21.9-1.21.10 = blocks)
+    overrides: {}                 # arena: "minecraft:item/netherite_sword"  أو  "atlas|sprite"
+  season:
+    auto-end-days: 0              # 0 = يدوي فقط (/tier admin season end)
+    soft-reset-keep: 0.5          # كم % من فرق التقييم عن البداية يبقى بعد نهاية الموسم

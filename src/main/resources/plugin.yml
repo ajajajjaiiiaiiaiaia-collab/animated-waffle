@@ -1,0 +1,89 @@
+name: Practice
+version: 1.0.0
+main: com.duel.DuelPlugin
+api-version: 1.21.11
+authors: [STARK NETWORK]
+softdepend: [LuckPerms, TAB, DecentHolograms, PlaceholderAPI, packetevents]
+description: Practice — STARK NETWORK
+
+commands:
+  setspawn:
+    description: Set the server spawn location
+    usage: /setspawn
+    permission: duelplugin.admin
+  GUI:
+    description: Main admin command for DuelPlugin
+    usage: /GUI <create|spawn|KIT|top|map|potion|delete>
+    permission: duelplugin.admin
+  duel:
+    description: Challenge another player to a 1v1 duel
+    usage: /duel <player>
+    permission: duelplugin.play
+  roundscene:
+    description: Control the cinematic round-break scene (max time, speed, height...)
+    usage: /roundscene [break|max-extra|speed|height|gap|dynamic] <value>
+    permission: duelplugin.admin
+  weeklyreset:
+    description: Force the weekly tops reset now
+    usage: /weeklyreset confirm
+    permission: duelplugin.admin
+  duelbarrier:
+    description: Build a barrier wall once in a template world (replaces the world border)
+    usage: /duelbarrier <template-world>
+    permission: duelplugin.admin
+  duelaccept:
+    description: Accept a pending duel request
+    usage: /duelaccept
+    permission: duelplugin.play
+  dueldecline:
+    description: Decline a pending duel request
+    usage: /dueldecline
+    permission: duelplugin.play
+  spectate:
+    description: Spectate a player in a duel
+    usage: /spectate <player>
+    permission: duelplugin.play
+  leave:
+    description: Leave the queue, forfeit your current duel, or leave a party match
+    usage: /leave
+    permission: duelplugin.play
+  tier:
+    description: View your ranked tiers, leaderboards and Hall of Legends
+    usage: /tier [info|top|hall|list|admin]
+    aliases: [tiers]
+    permission: duelplugin.play
+  tiertop:
+    description: Open the tier leaderboard dialog
+    usage: /tiertop [arena]
+    aliases: [ttop]
+    permission: duelplugin.play
+  settings:
+    description: Open your personal settings menu
+    usage: /settings
+    permission: duelplugin.play
+  team:
+    description: Manage your party teams
+    usage: /team disband
+    permission: duelplugin.play
+  party:
+    description: Party system
+    usage: /party <create|disband|invite|join|leave|kick|info|open|close|chat|ffa>
+    aliases: [p]
+    permission: duelplugin.play
+
+permissions:
+  duelplugin.admin:
+    description: Access to all admin commands
+    default: op
+  duelplugin.party.unlimited:
+    description: Bypass the 32 player party size limit
+    default: false
+  duelplugin.trm:
+    description: Use the whole armor trim system (all patterns)
+    default: op
+  duelplugin.fly.spawn:
+    description: Ability to fly while inside the spawn world only
+    default: false
+  duelplugin.play:
+    description: Ability to queue and use player commands
+    default: true
