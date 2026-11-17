@@ -27,7 +27,7 @@ public final class RandomArena {
     public static final String TOKEN = "__random_arena__";
 
     /** الاسم اللي يظهر للخصم / في الـ GUI */
-    public static final String NAME = "عشوائية";
+    public static final String NAME = "Random";
 
     public static boolean is(String mapWorld) {
         return TOKEN.equals(mapWorld);

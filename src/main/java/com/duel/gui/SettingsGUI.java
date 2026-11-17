@@ -27,6 +27,7 @@ public class SettingsGUI implements InventoryHolder {
     public static final int SLOT_HIDE_ACTIONBAR          = 40;
     public static final int SLOT_HIDE_DEATH_MESSAGES    = 29;
     public static final int SLOT_HIDE_JOIN_QUIT          = 38;
+    public static final int SLOT_AURA_GG                 = 42;
 
     private final DuelPlugin plugin;
     private final Inventory  inventory;
@@ -55,6 +56,7 @@ public class SettingsGUI implements InventoryHolder {
         boolean hideActionbar      = plugin.getSettingsManager().isEnabled(player.getUniqueId(), Setting.HIDE_ACTIONBAR);
         boolean hideDeathMessages  = plugin.getSettingsManager().isEnabled(player.getUniqueId(), Setting.HIDE_DEATH_MESSAGES);
         boolean hideJoinQuit       = plugin.getSettingsManager().isEnabled(player.getUniqueId(), Setting.HIDE_JOIN_QUIT_MESSAGES);
+        boolean auraGg             = plugin.getSettingsManager().isEnabled(player.getUniqueId(), Setting.AURA_GG);
 
         inventory.setItem(SLOT_HIDE_CHAT, buildToggle(
                 Material.OAK_SIGN,
@@ -103,6 +105,12 @@ public class SettingsGUI implements InventoryHolder {
                 "🚪  Hide Join/Quit Messages",
                 "Hides player join and quit messages from your chat.",
                 hideJoinQuit));
+
+        inventory.setItem(SLOT_AURA_GG, buildToggle(
+                Material.FIREWORK_ROCKET,
+                "✨  Aura gg",
+                "Automatically says \"gg\" in chat when you win a duel.",
+                auraGg));
     }
 
     private ItemStack buildToggle(Material mat, String name, String description, boolean enabled) {

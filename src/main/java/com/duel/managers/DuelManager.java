@@ -746,6 +746,8 @@ public class DuelManager {
                 try { if (p.getSpectatorTarget() != null) p.setSpectatorTarget(null); } catch (Throwable ignored) {}
                 p.setGameMode(GameMode.SURVIVAL); // الخاسر كان سبكتر → يرجع لاعب
                 clearFlight(p);                   // الفايز يخسر الطيران
+                p.closeInventory();           // يسكّر أي GUI/صندوق مفتوح (وإلا الـ clear ما يحدّث شاشته)
+                p.setItemOnCursor(null);      // getInventory().clear() ما يلمس الكيرسر — آيتم طايح بالهواء يضيع فعلياً
                 p.getInventory().clear();
                 for (org.bukkit.potion.PotionEffect e : new ArrayList<>(p.getActivePotionEffects())) {
                     p.removePotionEffect(e.getType());
@@ -953,6 +955,11 @@ public class DuelManager {
         if (winner.isOnline()) {
             TitleUtils.sendWinner(winner);
             SoundUtils.playWinner(winner);
+            // Aura gg — يكتب gg في الشات تلقائياً لو مفعّل
+            if (plugin.getSettingsManager().isEnabled(winner.getUniqueId(),
+                    com.duel.managers.SettingsManager.Setting.AURA_GG)) {
+                winner.chat("gg");
+            }
         }
         if (loser.isOnline()) {
             TitleUtils.sendLoser(loser);

@@ -19,7 +19,8 @@ public class SettingsManager {
         MUTE_SOUNDS,
         HIDE_ACTIONBAR,
         HIDE_DEATH_MESSAGES,
-        HIDE_JOIN_QUIT_MESSAGES
+        HIDE_JOIN_QUIT_MESSAGES,
+        AURA_GG
     }
 
     private final DuelPlugin plugin;
@@ -122,7 +123,7 @@ public class SettingsManager {
             }
             case HIDE_CHAT, MUTE_SOUNDS, HIDE_ACTIONBAR,
                  HIDE_DEATH_MESSAGES, HIDE_JOIN_QUIT_MESSAGES,
-                 BLOCK_DUEL_REQUESTS -> {
+                 BLOCK_DUEL_REQUESTS, AURA_GG -> {
                 // Handled in their respective listeners/managers
             }
         }
@@ -165,6 +166,7 @@ public class SettingsManager {
                 map.put(Setting.HIDE_ACTIONBAR,          rs.getInt("hide_actionbar")       == 1);
                 map.put(Setting.HIDE_DEATH_MESSAGES,     rs.getInt("hide_death_messages")  == 1);
                 map.put(Setting.HIDE_JOIN_QUIT_MESSAGES, rs.getInt("hide_join_quit")       == 1);
+                map.put(Setting.AURA_GG,                 rs.getInt("aura_gg")              == 1);
             }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.WARNING, "[DuelPlugin] Failed to load settings for " + uuid, e);
@@ -178,8 +180,8 @@ public class SettingsManager {
                  PreparedStatement ps = conn.prepareStatement("""
                     INSERT INTO player_settings
                         (uuid, hide_chat, hide_scoreboard, hide_players, block_duel_requests,
-                         mute_sounds, hide_actionbar, hide_death_messages, hide_join_quit)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         mute_sounds, hide_actionbar, hide_death_messages, hide_join_quit, aura_gg)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(uuid) DO UPDATE SET
                         hide_chat           = excluded.hide_chat,
                         hide_scoreboard     = excluded.hide_scoreboard,
@@ -188,7 +190,8 @@ public class SettingsManager {
                         mute_sounds         = excluded.mute_sounds,
                         hide_actionbar      = excluded.hide_actionbar,
                         hide_death_messages = excluded.hide_death_messages,
-                        hide_join_quit      = excluded.hide_join_quit
+                        hide_join_quit      = excluded.hide_join_quit,
+                        aura_gg             = excluded.aura_gg
                 """)) {
                 ps.setString(1, uuid.toString());
                 ps.setInt(2,  b(map, Setting.HIDE_CHAT));
@@ -199,6 +202,7 @@ public class SettingsManager {
                 ps.setInt(7,  b(map, Setting.HIDE_ACTIONBAR));
                 ps.setInt(8,  b(map, Setting.HIDE_DEATH_MESSAGES));
                 ps.setInt(9,  b(map, Setting.HIDE_JOIN_QUIT_MESSAGES));
+                ps.setInt(10, b(map, Setting.AURA_GG));
                 ps.executeUpdate();
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "[DuelPlugin] Failed to save settings for " + uuid, e);
