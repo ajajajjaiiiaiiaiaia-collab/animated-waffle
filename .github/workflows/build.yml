@@ -2,7 +2,7 @@ name: Build Grim
 
 on:
   push:
-    branches: [grim]
+    branches: [grim-bedrock-test]
   workflow_dispatch:
 
 permissions:
@@ -26,13 +26,13 @@ jobs:
         run: |
           JAR=$(ls bukkit/build/libs/*.jar | grep -v -E 'sources|javadoc|plain' | head -n1)
           echo "Built: $JAR"
-          cp "$JAR" Grim-NoSpear.jar
+          cp "$JAR" Grim-BedrockTest.jar
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete grim-latest --cleanup-tag --yes || true
-          gh release create grim-latest Grim-NoSpear.jar \
-            --title "Grim 2.3.75 + spear/end crystal exemption (latest build)" \
-            --notes "Grim 2.3.75-8ec9b7d with Reach/Hitboxes skipped while holding a spear or an end crystal and for 5 ticks after. Commit ${GITHUB_SHA::7}" \
+          gh release delete grim-bedrock-test --cleanup-tag --yes || true
+          gh release create grim-bedrock-test Grim-BedrockTest.jar \
+            --title "Grim 2.3.75 TEST: setback packet injection reverted" \
+            --notes "Grim 2.3.75-8ec9b7d test build for Bedrock kicks (issue 3007): reverts upstream 0ea9b5a, keeps spear/end crystal exemption. Commit ${GITHUB_SHA::7}" \
             --target "$GITHUB_SHA"

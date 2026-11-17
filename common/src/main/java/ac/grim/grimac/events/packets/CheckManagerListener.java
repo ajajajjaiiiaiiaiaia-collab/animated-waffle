@@ -637,7 +637,7 @@ public class CheckManagerListener extends PacketListenerAbstract {
             WrapperPlayClientPlayerFlying flying = new WrapperPlayClientPlayerFlying(event);
             SetBackData setback = teleportData.getSetback();
 
-            if (flying.hasPositionChanged() && setback != null && !setback.isPlugin()) {
+            if (flying.hasPositionChanged() && setback != null && !setback.isPlugin() && !setback.isVehicle()) {
                 flying.setOnGround(setback.isOnGround());
                 event.markForReEncode(true);
             }
