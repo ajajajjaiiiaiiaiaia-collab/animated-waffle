@@ -388,6 +388,7 @@ public class TierManager implements Listener {
         Tier target = prof.tier.next();
         if (target == null) { prof.challengePending = false; return; }
         if (won) {
+            final Tier oldTier = prof.tier;
             prof.tier = target;
             if (target.ordinal() > prof.peakTier.ordinal()) prof.peakTier = target;
             prof.challengePending = false;
@@ -396,7 +397,7 @@ public class TierManager implements Listener {
             prof.seasonPeakRating = Math.max(prof.seasonPeakRating, prof.rating);
             if (p.isOnline()) {
                 p.sendMessage(c("&6&l★ RANKED UP! &7You are now " + target.colored() + " &7in &f" + arenaId));
-                showTitle(p, "&6&lRANK UP!", target.colored() + " &7— " + arenaId);
+                showRankUp(p, oldTier, target, arenaId);
             }
             Tier from = Tier.parse(cfg().getString("tier.broadcast-from", "LT2"), Tier.LT2);
             if (target.ordinal() >= from.ordinal()) {
@@ -446,6 +447,27 @@ public class TierManager implements Listener {
         if (defenseRequired) {
             p.sendMessage(c("&c&l⚠ TIER DEFENSE &7— your rating is too low for " + prof.tier.colored()
                     + "&7. Your next ranked match in &f" + arenaId + " &7is a defense."));
+        }
+    }
+
+    /** عنوان الترقية: التير القديم » التير الجديد (بألوانهم) + كلام تحته + صوت. */
+    private void showRankUp(Player p, Tier from, Tier to, String arenaId) {
+        try {
+            LegacyComponentSerializer s = LegacyComponentSerializer.builder().character('§').hexColors().useUnusualXRepeatedCharacterHexFormat().build();
+            Component main = s.deserialize(c(from.colored() + " &8\u00bb\u00bb\u00bb &f" + "" + to.colored()));
+            Component sub = s.deserialize(c("&a\u2728 Congratulations! &7You were promoted to " + to.colored()
+                    + " &7in &f" + arenaId));
+            p.showTitle(Title.title(main, sub, Title.Times.times(
+                    java.time.Duration.ofMillis(300), java.time.Duration.ofMillis(3500), java.time.Duration.ofMillis(800))));
+            p.playSound(p.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (p.isOnline()) p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f);
+            }, 8L);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (p.isOnline()) p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_FIREWORK_ROCKET_TWINKLE, 1.0f, 1.0f);
+            }, 16L);
+        } catch (Throwable t) {
+            showTitle(p, "&6&lRANK UP!", to.colored() + " &7\u2014 " + arenaId);
         }
     }
 
