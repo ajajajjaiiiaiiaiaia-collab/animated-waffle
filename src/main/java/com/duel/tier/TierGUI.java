@@ -35,7 +35,7 @@ public class TierGUI implements InventoryHolder {
     @Override public Inventory getInventory() { return inv; }
 
     private static Component txt(String legacy) {
-        return LegacyComponentSerializer.legacySection().deserialize(legacy.replace('&', '§'))
+        return LegacyComponentSerializer.builder().character('§').hexColors().useUnusualXRepeatedCharacterHexFormat().build().deserialize(legacy.replace('&', '§'))
                 .decoration(TextDecoration.ITALIC, false);
     }
 

@@ -17,7 +17,7 @@ import java.util.WeakHashMap;
 
 public class DuelScoreboardManager {
 
-    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
+    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.builder().character('§').hexColors().useUnusualXRepeatedCharacterHexFormat().build();
 
     private final DuelPlugin plugin;
 
