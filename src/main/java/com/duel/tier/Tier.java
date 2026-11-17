@@ -5,15 +5,15 @@ package com.duel.tier;
  */
 public enum Tier {
     LT5("&7", 0),
-    HT5("&f", 1050),
-    LT4("&a", 1100),
-    HT4("&2", 1175),
-    LT3("&b", 1250),
-    HT3("&3", 1350),
-    LT2("&d", 1450),
-    HT2("&5", 1575),
-    LT1("&6", 1700),
-    HT1("&c&l", 1850);
+    HT5("&7", 1050),
+    LT4("&7", 1100),
+    HT4("&7", 1175),
+    LT3("&e", 1250),
+    HT3("&e&l", 1350),
+    LT2("&6", 1450),
+    HT2("&6&l", 1575),
+    LT1("&d", 1700),
+    HT1("&d&l", 1850);
 
     private final String color;
     private final int defaultThreshold;
@@ -28,7 +28,14 @@ public enum Tier {
     public int defaultThreshold()  { return defaultThreshold; }
 
     /** الاسم مع اللون بصيغة & (مثل &6HT1) */
-    public String colored()        { return color + name(); }
+    public String colored() {
+        if (this == LT1 || this == HT1) {
+            String b = this == HT1 ? "&l" : "";
+            String n = name();
+            return "&d" + b + n.charAt(0) + "&5" + b + n.charAt(1) + "&c" + b + n.charAt(2);
+        }
+        return color + name();
+    }
     /** الاسم مع اللون بصيغة § للإرسال المباشر */
     public String chat()           { return colored().replace('&', '§'); }
 
