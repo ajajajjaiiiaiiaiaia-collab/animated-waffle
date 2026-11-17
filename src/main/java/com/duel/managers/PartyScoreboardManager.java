@@ -29,7 +29,7 @@ import java.util.*;
  */
 public class PartyScoreboardManager {
 
-    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
+    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.builder().character('§').hexColors().useUnusualXRepeatedCharacterHexFormat().build();
 
     private static final String DEFAULT_TITLE  = "&b&l⚔ &f&lPARTY &b&l⚔";
     private static final List<String> DEFAULT_LINES = List.of(

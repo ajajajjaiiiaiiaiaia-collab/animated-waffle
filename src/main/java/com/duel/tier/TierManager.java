@@ -400,7 +400,7 @@ public class TierManager implements Listener {
             }
             Tier from = Tier.parse(cfg().getString("tier.broadcast-from", "LT2"), Tier.LT2);
             if (target.ordinal() >= from.ordinal()) {
-                Bukkit.broadcast(LegacyComponentSerializer.legacySection().deserialize(
+                Bukkit.broadcast(LegacyComponentSerializer.builder().character('§').hexColors().useUnusualXRepeatedCharacterHexFormat().build().deserialize(
                         c("&8[&bTier&8] &f" + p.getName() + " &7reached " + target.colored() + " &7in &f" + arenaId + "&7!")));
             }
         } else {
@@ -451,7 +451,7 @@ public class TierManager implements Listener {
 
     private void showTitle(Player p, String title, String sub) {
         try {
-            LegacyComponentSerializer s = LegacyComponentSerializer.legacySection();
+            LegacyComponentSerializer s = LegacyComponentSerializer.builder().character('§').hexColors().useUnusualXRepeatedCharacterHexFormat().build();
             p.showTitle(Title.title(s.deserialize(c(title)), s.deserialize(c(sub))));
         } catch (Throwable ignored) {}
     }

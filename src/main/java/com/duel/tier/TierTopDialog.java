@@ -218,7 +218,7 @@ public final class TierTopDialog {
     }
 
     private static Component legacy(String section) {
-        return LegacyComponentSerializer.legacySection().deserialize(section)
+        return LegacyComponentSerializer.builder().character('§').hexColors().useUnusualXRepeatedCharacterHexFormat().build().deserialize(section)
                 .decoration(TextDecoration.ITALIC, false);
     }
 
