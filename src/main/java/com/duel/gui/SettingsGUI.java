@@ -148,6 +148,7 @@ public class SettingsGUI implements InventoryHolder {
     }
 
     public static void open(DuelPlugin plugin, Player player) {
+        if (SettingsDialog.open(plugin, player)) return;
         SettingsGUI gui = new SettingsGUI(plugin, player);
         player.openInventory(gui.getInventory());
     }

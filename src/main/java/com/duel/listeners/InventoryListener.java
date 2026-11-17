@@ -93,7 +93,7 @@ public class InventoryListener implements Listener {
         if (isSettingsClock(held)) {
             event.setCancelled(true);
             SoundUtils.playGuiClick(player);
-            player.openInventory(new SettingsGUI(plugin, player).getInventory());
+            SettingsGUI.open(plugin, player);
             return;
         }
 
