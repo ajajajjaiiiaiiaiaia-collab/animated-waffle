@@ -955,7 +955,7 @@ public class DuelManager {
         if (winner.isOnline()) {
             TitleUtils.sendWinner(winner);
             SoundUtils.playWinner(winner);
-            // Aura gg — يكتب gg في الشات تلقائياً لو مفعّل
+            // Auto gg — يكتب gg في الشات تلقائياً لو مفعّل
             if (plugin.getSettingsManager().isEnabled(winner.getUniqueId(),
                     com.duel.managers.SettingsManager.Setting.AURA_GG)) {
                 winner.chat("gg");

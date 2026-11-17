@@ -40,7 +40,7 @@ public final class SettingsDialog {
             new Entry(Setting.HIDE_DEATH_MESSAGES, "💀", "Hide Death Messages", "Hides all player death messages from your chat."),
             new Entry(Setting.HIDE_JOIN_QUIT_MESSAGES, "🚪", "Hide Join/Quit", "Hides player join and quit messages from your chat."),
             new Entry(Setting.HIDE_RANKUP_TITLE, "\uD83C\uDFC6", "Hide Rankup Title", "Turns off the big title and sounds shown when you rank up."),
-            new Entry(Setting.AURA_GG, "✨", "Aura gg", "Automatically says \"gg\" in chat when you win a duel.")
+            new Entry(Setting.AURA_GG, "✨", "Auto gg", "Automatically says \"gg\" in chat when you win a duel.")
     );
 
     private SettingsDialog() {}

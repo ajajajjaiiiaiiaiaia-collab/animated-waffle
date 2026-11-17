@@ -115,7 +115,7 @@ public class SettingsGUI implements InventoryHolder {
 
         inventory.setItem(SLOT_AURA_GG, buildToggle(
                 Material.FIREWORK_ROCKET,
-                "✨  Aura gg",
+                "✨  Auto gg",
                 "Automatically says \"gg\" in chat when you win a duel.",
                 auraGg));
     }
