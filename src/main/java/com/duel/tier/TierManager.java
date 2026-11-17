@@ -452,6 +452,7 @@ public class TierManager implements Listener {
 
     /** عنوان الترقية: التير القديم » التير الجديد (بألوانهم) + كلام تحته + صوت. */
     private void showRankUp(Player p, Tier from, Tier to, String arenaId) {
+        if (plugin.getSettingsManager().isEnabled(p.getUniqueId(), com.duel.managers.SettingsManager.Setting.HIDE_RANKUP_TITLE)) return;
         try {
             LegacyComponentSerializer s = LegacyComponentSerializer.builder().character('§').hexColors().useUnusualXRepeatedCharacterHexFormat().build();
             Component main = s.deserialize(c(from.colored() + " &8\u00bb\u00bb\u00bb &f" + "" + to.colored()));

@@ -28,6 +28,7 @@ public class SettingsGUI implements InventoryHolder {
     public static final int SLOT_HIDE_DEATH_MESSAGES    = 29;
     public static final int SLOT_HIDE_JOIN_QUIT          = 38;
     public static final int SLOT_AURA_GG                 = 42;
+    public static final int SLOT_HIDE_RANKUP_TITLE       = 49;
 
     private final DuelPlugin plugin;
     private final Inventory  inventory;
@@ -105,6 +106,12 @@ public class SettingsGUI implements InventoryHolder {
                 "🚪  Hide Join/Quit Messages",
                 "Hides player join and quit messages from your chat.",
                 hideJoinQuit));
+
+        inventory.setItem(SLOT_HIDE_RANKUP_TITLE, buildToggle(
+                Material.GOLDEN_HELMET,
+                "\uD83C\uDFC6  Hide Rankup Title",
+                "Turns off the big title and sounds shown when you rank up.",
+                plugin.getSettingsManager().isEnabled(player.getUniqueId(), Setting.HIDE_RANKUP_TITLE)));
 
         inventory.setItem(SLOT_AURA_GG, buildToggle(
                 Material.FIREWORK_ROCKET,

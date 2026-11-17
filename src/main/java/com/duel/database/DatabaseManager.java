@@ -139,10 +139,12 @@ public class DatabaseManager {
                     hide_actionbar      INTEGER DEFAULT 0,
                     hide_death_messages INTEGER DEFAULT 0,
                     hide_join_quit      INTEGER DEFAULT 0,
-                    aura_gg             INTEGER DEFAULT 0
+                    aura_gg             INTEGER DEFAULT 0,
+                    hide_rankup_title   INTEGER DEFAULT 0
                 )
             """);
             try { stmt.execute("ALTER TABLE player_settings ADD COLUMN aura_gg INTEGER DEFAULT 0"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE player_settings ADD COLUMN hide_rankup_title INTEGER DEFAULT 0"); } catch (Exception ignored) {}
 
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS stats (

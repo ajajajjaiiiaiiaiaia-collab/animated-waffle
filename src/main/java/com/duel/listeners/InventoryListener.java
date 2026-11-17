@@ -944,6 +944,7 @@ public class InventoryListener implements Listener {
         else if (slot == SettingsGUI.SLOT_HIDE_DEATH_MESSAGES)     setting = SettingsManager.Setting.HIDE_DEATH_MESSAGES;
         else if (slot == SettingsGUI.SLOT_HIDE_JOIN_QUIT)          setting = SettingsManager.Setting.HIDE_JOIN_QUIT_MESSAGES;
         else if (slot == SettingsGUI.SLOT_AURA_GG)                 setting = SettingsManager.Setting.AURA_GG;
+        else if (slot == SettingsGUI.SLOT_HIDE_RANKUP_TITLE)       setting = SettingsManager.Setting.HIDE_RANKUP_TITLE;
 
         if (setting == null) return;
 
