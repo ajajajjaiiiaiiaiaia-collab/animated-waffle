@@ -379,7 +379,8 @@ public class AuthSessionHandler implements LimboSessionHandler {
       command = Settings.IMP.MAIN.LOGIN_COMMAND.get(0) + " " + password;
     }
 
-    if (password.isEmpty() || command.split(" ", -1).length != (this.playerInfo == null && !this.totpState && Settings.IMP.MAIN.REGISTER_NEED_REPEAT_PASSWORD ? 3 : 2)) {
+    boolean needRepeat = this.playerInfo == null && !this.totpState && Settings.IMP.MAIN.REGISTER_NEED_REPEAT_PASSWORD;
+    if (password.isEmpty() || command.split(" ", -1).length != (needRepeat ? 3 : 2)) {
       this.proxyPlayer.sendMessage(LimboAuth.getSerializer().deserialize(Settings.IMP.MAIN.DIALOG.NO_SPACES));
       this.sendMessage(false);
       return;
