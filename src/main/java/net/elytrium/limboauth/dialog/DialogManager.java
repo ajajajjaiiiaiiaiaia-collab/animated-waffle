@@ -44,11 +44,11 @@ public final class DialogManager {
 
   public static void register(Limbo limbo) {
     limbo.registerPacket(PacketDirection.CLIENTBOUND, ShowDialogPacket.class, ShowDialogPacket::new, new PacketMapping[] {
-        new PacketMapping(0x85, ProtocolVersion.MINECRAFT_1_21_6, ProtocolVersion.MINECRAFT_1_21_7, true),
+        new PacketMapping(0x85, ProtocolVersion.MINECRAFT_1_21_6, true),
         new PacketMapping(0x8A, ProtocolVersion.MINECRAFT_1_21_9, ProtocolVersion.MINECRAFT_1_21_11, true)
     });
     limbo.registerPacket(PacketDirection.CLIENTBOUND, ClearDialogPacket.class, ClearDialogPacket::new, new PacketMapping[] {
-        new PacketMapping(0x84, ProtocolVersion.MINECRAFT_1_21_6, ProtocolVersion.MINECRAFT_1_21_7, true),
+        new PacketMapping(0x84, ProtocolVersion.MINECRAFT_1_21_6, true),
         new PacketMapping(0x89, ProtocolVersion.MINECRAFT_1_21_9, ProtocolVersion.MINECRAFT_1_21_11, true)
     });
     limbo.registerPacket(PacketDirection.SERVERBOUND, ClickActionPacket.class, ClickActionPacket::new, new PacketMapping[] {
