@@ -119,6 +119,7 @@ public class AuthSessionHandler implements LimboSessionHandler {
   private boolean tokenReceived;
   private boolean dialogMode;
   private boolean dialogInteracted;
+  private boolean dialogLoadShown;
 
   public AuthSessionHandler(Dao<RegisteredPlayer, String> playerDao, Player proxyPlayer, LimboAuth plugin, @Nullable RegisteredPlayer playerInfo) {
     this.playerDao = playerDao;
@@ -398,6 +399,33 @@ public class AuthSessionHandler implements LimboSessionHandler {
     }
 
     this.onChat(command);
+  }
+
+  private void onClientLoaded() {
+    // The first movement packets arrive only once the client has finished loading the world, so the dialog is certain to be shown.
+    if (this.dialogMode && !this.dialogLoadShown && !this.dialogInteracted) {
+      this.dialogLoadShown = true;
+      this.player.getScheduledExecutor().schedule(() -> {
+        if (!this.dialogInteracted) {
+          this.showDialog();
+        }
+      }, 250, TimeUnit.MILLISECONDS);
+    }
+  }
+
+  @Override
+  public void onMove(double posX, double posY, double posZ) {
+    this.onClientLoaded();
+  }
+
+  @Override
+  public void onMove(double posX, double posY, double posZ, float yaw, float pitch) {
+    this.onClientLoaded();
+  }
+
+  @Override
+  public void onRotate(float yaw, float pitch) {
+    this.onClientLoaded();
   }
 
   private void showDialog() {
