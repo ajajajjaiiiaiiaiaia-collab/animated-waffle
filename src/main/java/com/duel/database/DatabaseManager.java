@@ -216,9 +216,11 @@ public class DatabaseManager {
                     challenge_pending   INTEGER NOT NULL DEFAULT 0,
                     challenge_cooldown  INTEGER NOT NULL DEFAULT 0,
                     defense_pending     INTEGER NOT NULL DEFAULT 0,
+                    placed              INTEGER NOT NULL DEFAULT 1,
                     PRIMARY KEY (uuid, arena_id)
                 )
             """);
+            try { stmt.execute("ALTER TABLE tier_profiles ADD COLUMN placed INTEGER NOT NULL DEFAULT 1"); } catch (Exception ignored) {}
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_tier_rating ON tier_profiles(arena_id, rating DESC)");
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS tier_history (

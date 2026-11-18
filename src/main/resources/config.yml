@@ -273,6 +273,10 @@ tier:
   k-factor: 32
   placement-matches: 3          # أول مباريات بالموسم تستخدم placement-k عشان توصل لمستواك بسرعة
   placement-k: 40
+  # اللاعب الجديد يبدأ Unranked، ولازم يفوز بتحدي ترقية عشان يوصل LT5 مثل باقي التيرات. false = يبدأ LT5 مباشرة.
+  unranked-start: true
+  unranked-threshold: 1020      # التقييم اللي يفتح له تحدي الوصول لـ LT5 (البداية 1000)
+  unranked-label: "&7Unranked"
   rating-floor: 0
   challenge-rounds: 3           # مباراة Rankup Challenge = كم راوند
   challenge-cooldown-minutes: 30  # بعد خسارة التحدي، كم دقيقة قبل ما ينفتح له تحدي ثاني

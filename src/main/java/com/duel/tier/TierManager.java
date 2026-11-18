@@ -77,6 +77,58 @@ public class TierManager implements Listener {
     public int getSeason()            { return season; }
     public int startRating()          { return cfg().getInt("tier.start-rating", 1000); }
     public int placementMatches()     { return cfg().getInt("tier.placement-matches", 3); }
+    /** اللاعب الجديد يبدأ Unranked ولازم يفوز بتحدي ترقية عشان يوصل LT5. */
+    public boolean unrankedStart()    { return cfg().getBoolean("tier.unranked-start", true); }
+    public int unrankedThreshold()    { return cfg().getInt("tier.unranked-threshold", 1020); }
+    public String unrankedLabel()     { return cfg().getString("tier.unranked-label", "&7Unranked"); }
+
+    private TierProfile fresh(UUID uuid, String k, String name) {
+        TierProfile p = new TierProfile(uuid, k, name, startRating());
+        p.placed = !unrankedStart();
+        return p;
+    }
+
+    /** التير الجاي اللي يتحداه اللاعب (Unranked → LT5). */
+    public Tier nextTarget(TierProfile p) {
+        return p.placed ? p.tier.next() : Tier.LT5;
+    }
+
+    /** نص التير للعرض (بصيغة &). */
+    public String label(TierProfile p) {
+        return p.placed ? p.tier.colored() : unrankedLabel();
+    }
+
+    public boolean isUnranked(UUID uuid, String arenaId) {
+        if (!unrankedStart()) return false;
+        Map<String, TierProfile> m = profiles.get(uuid);
+        TierProfile p = m == null ? null : m.get(key(arenaId));
+        return p == null || !p.placed;
+    }
+
+    /** نص التير بأرينا معيّنة للعرض (بصيغة &). */
+    public String display(UUID uuid, String arenaId) {
+        return isUnranked(uuid, arenaId) ? unrankedLabel() : getTier(uuid, arenaId).colored();
+    }
+
+    /** أعلى بروفايل بين الأرينات اللي تأهل فيها، أو null. */
+    public TierProfile getBestPlacedProfile(UUID uuid) {
+        Map<String, TierProfile> m = profiles.get(uuid);
+        if (m == null) return null;
+        TierProfile best = null;
+        for (TierProfile p : m.values()) {
+            if (!p.placed) continue;
+            if (best == null || p.tier.ordinal() > best.tier.ordinal()
+                    || (p.tier == best.tier && p.rating > best.rating)) best = p;
+        }
+        return best;
+    }
+
+    public String displayBest(UUID uuid) {
+        if (!unrankedStart()) return getBestTier(uuid).colored();
+        TierProfile bp = getBestPlacedProfile(uuid);
+        return bp == null ? unrankedLabel() : bp.tier.colored();
+    }
+
     public int challengeRounds()      { return Math.max(1, cfg().getInt("tier.challenge-rounds", 3)); }
     private int defenseBuffer()       { return cfg().getInt("tier.defense-buffer", 60); }
 
@@ -101,8 +153,8 @@ public class TierManager implements Listener {
     public TierProfile get(UUID uuid, String name, String arenaId) {
         String k = key(arenaId);
         Map<String, TierProfile> m = profiles.get(uuid);
-        if (m == null) return new TierProfile(uuid, k, name, startRating());
-        return m.computeIfAbsent(k, x -> new TierProfile(uuid, k, name, startRating()));
+        if (m == null) return fresh(uuid, k, name);
+        return m.computeIfAbsent(k, x -> fresh(uuid, k, name));
     }
 
     /** نفس get لكن مع تحديث حالة التحدي/الدفاع (انتهاء الـ cooldown، إلخ). */
@@ -165,6 +217,7 @@ public class TierManager implements Listener {
                 p.challengePending = rs.getInt("challenge_pending") == 1;
                 p.challengeCooldown = rs.getLong("challenge_cooldown");
                 p.defensePending = rs.getInt("defense_pending") == 1;
+                p.placed = rs.getInt("placed") == 1;
                 m.put(arena, p);
             }
         } catch (SQLException e) {
@@ -180,15 +233,16 @@ public class TierManager implements Listener {
             try (Connection conn = plugin.getDatabaseManager().getConnection();
                  PreparedStatement ps = conn.prepareStatement("""
                     INSERT INTO tier_profiles (uuid, arena_id, name, rating, tier, peak_tier, season_peak_rating,
-                        games, wins, losses, challenge_pending, challenge_cooldown, defense_pending)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        games, wins, losses, challenge_pending, challenge_cooldown, defense_pending, placed)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     ON CONFLICT(uuid, arena_id) DO UPDATE SET
                         name=excluded.name, rating=excluded.rating, tier=excluded.tier,
                         peak_tier=excluded.peak_tier, season_peak_rating=excluded.season_peak_rating,
                         games=excluded.games, wins=excluded.wins, losses=excluded.losses,
                         challenge_pending=excluded.challenge_pending,
                         challenge_cooldown=excluded.challenge_cooldown,
-                        defense_pending=excluded.defense_pending
+                        defense_pending=excluded.defense_pending,
+                        placed=excluded.placed
                  """)) {
                 ps.setString(1, p.uuid.toString());
                 ps.setString(2, p.arenaId);
@@ -203,6 +257,7 @@ public class TierManager implements Listener {
                 ps.setInt(11, p.challengePending ? 1 : 0);
                 ps.setLong(12, p.challengeCooldown);
                 ps.setInt(13, p.defensePending ? 1 : 0);
+                ps.setInt(14, p.placed ? 1 : 0);
                 ps.executeUpdate();
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "[Tier] Failed to save profile", e);
@@ -218,6 +273,12 @@ public class TierManager implements Listener {
 
     /** يحدّث حالة التحدي والدفاع حسب التقييم الحالي. */
     public void refreshFlags(TierProfile p) {
+        if (!p.placed) {
+            p.defensePending = false;
+            p.challengePending = p.rating >= unrankedThreshold()
+                    && System.currentTimeMillis() >= p.challengeCooldown;
+            return;
+        }
         Tier next = p.tier.next();
         boolean defense = p.tier != Tier.LT5 && p.rating < threshold(p.tier) - defenseBuffer();
         p.defensePending = defense;
@@ -274,9 +335,9 @@ public class TierManager implements Listener {
         MatchContext ctx = new MatchContext(key(arenaId));
         for (Player p : new Player[]{p1, p2}) {
             TierProfile prof = getFresh(p.getUniqueId(), p.getName(), arenaId);
-            if (prof.challengePending && prof.tier.next() != null) {
+            if (prof.challengePending && nextTarget(prof) != null) {
                 ctx.challengers.add(p.getUniqueId());
-                p.sendMessage(c("&6&l★ RANKUP CHALLENGE &7— win to reach " + prof.tier.next().colored()
+                p.sendMessage(c("&6&l★ RANKUP CHALLENGE &7— win to reach " + nextTarget(prof).colored()
                         + " &7(best-of-" + challengeRounds() + ")"));
             }
             if (prof.defensePending) {
@@ -385,10 +446,11 @@ public class TierManager implements Listener {
     }
 
     private void resolveChallenge(Player p, TierProfile prof, boolean won, String arenaId) {
-        Tier target = prof.tier.next();
+        Tier target = nextTarget(prof);
         if (target == null) { prof.challengePending = false; return; }
         if (won) {
-            final Tier oldTier = prof.tier;
+            final Tier oldTier = prof.placed ? prof.tier : null;
+            prof.placed = true;
             prof.tier = target;
             if (target.ordinal() > prof.peakTier.ordinal()) prof.peakTier = target;
             prof.challengePending = false;
@@ -438,11 +500,11 @@ public class TierManager implements Listener {
     private void notifyResult(Player p, TierProfile prof, int oldRating, String delta, String arenaId,
                               boolean challengeUnlocked, boolean defenseRequired) {
         if (!p.isOnline()) return;
-        p.sendMessage(c("&8[&bTier&8] &f" + arenaId + " &8| " + prof.tier.colored() + " &8| " + delta
+        p.sendMessage(c("&8[&bTier&8] &f" + arenaId + " &8| " + label(prof) + " &8| " + delta
                 + " &7(" + oldRating + " → &f" + prof.rating + "&7)"));
-        if (challengeUnlocked && prof.tier.next() != null) {
-            p.sendMessage(c("&6&l★ RANKUP CHALLENGE UNLOCKED &7— queue &f" + arenaId + " &7to fight for " + prof.tier.next().colored()));
-            showTitle(p, "&6&l★ CHALLENGE", "&7Queue to rank up to " + prof.tier.next().colored());
+        if (challengeUnlocked && nextTarget(prof) != null) {
+            p.sendMessage(c("&6&l★ RANKUP CHALLENGE UNLOCKED &7— queue &f" + arenaId + " &7to fight for " + nextTarget(prof).colored()));
+            showTitle(p, "&6&l★ CHALLENGE", "&7Queue to rank up to " + nextTarget(prof).colored());
         }
         if (defenseRequired) {
             p.sendMessage(c("&c&l⚠ TIER DEFENSE &7— your rating is too low for " + prof.tier.colored()
@@ -455,7 +517,7 @@ public class TierManager implements Listener {
         if (plugin.getSettingsManager().isEnabled(p.getUniqueId(), com.duel.managers.SettingsManager.Setting.HIDE_RANKUP_TITLE)) return;
         try {
             LegacyComponentSerializer s = LegacyComponentSerializer.builder().character('§').hexColors().useUnusualXRepeatedCharacterHexFormat().build();
-            Component main = s.deserialize(c(from.colored() + " &8\u00bb\u00bb\u00bb &f" + "" + to.colored()));
+            Component main = s.deserialize(c((from == null ? unrankedLabel() : from.colored()) + " &8\u00bb\u00bb\u00bb &f" + "" + to.colored()));
             Component sub = s.deserialize(c("&a\u2728 Congratulations! &7You were promoted to " + to.colored()
                     + " &7in &f" + arenaId));
             p.showTitle(Title.title(main, sub, Title.Times.times(
@@ -499,12 +561,12 @@ public class TierManager implements Listener {
                 int games;
                 if (prof != null) {
                     rating = prof.rating;
-                    games = prof.games;
+                    games = prof.placed ? prof.games : 0;
                 } else {
                     rating = startRating();
                     games = 0;
                     try (PreparedStatement ps = conn.prepareStatement(
-                            "SELECT rating, games FROM tier_profiles WHERE uuid = ? AND arena_id = ?")) {
+                            "SELECT rating, CASE WHEN placed = 1 THEN games ELSE 0 END FROM tier_profiles WHERE uuid = ? AND arena_id = ?")) {
                         ps.setString(1, uuid.toString());
                         ps.setString(2, arena);
                         ResultSet rs = ps.executeQuery();
@@ -513,7 +575,7 @@ public class TierManager implements Listener {
                 }
                 if (games > 0) {
                     try (PreparedStatement ps = conn.prepareStatement(
-                            "SELECT COUNT(*) FROM tier_profiles WHERE arena_id = ? AND games > 0 AND rating > ?")) {
+                            "SELECT COUNT(*) FROM tier_profiles WHERE arena_id = ? AND games > 0 AND placed = 1 AND rating > ?")) {
                         ps.setString(1, arena);
                         ps.setInt(2, rating);
                         ResultSet rs = ps.executeQuery();
@@ -539,7 +601,7 @@ public class TierManager implements Listener {
                     List<TopEntry> list = new ArrayList<>();
                     try (Connection conn = plugin.getDatabaseManager().getConnection();
                          PreparedStatement ps = conn.prepareStatement(
-                                 "SELECT uuid, name, rating, tier FROM tier_profiles WHERE arena_id = ? AND games > 0 " +
+                                 "SELECT uuid, name, rating, tier FROM tier_profiles WHERE arena_id = ? AND games > 0 AND placed = 1 " +
                                  "ORDER BY rating DESC LIMIT 10")) {
                         ps.setString(1, id);
                         ResultSet rs = ps.executeQuery();
@@ -716,6 +778,7 @@ public class TierManager implements Listener {
     public void adminSetTier(Player target, String arenaId, Tier tier) {
         ensureLoaded(target.getUniqueId());
         TierProfile p = get(target.getUniqueId(), target.getName(), arenaId);
+        p.placed = true;
         p.tier = tier;
         if (tier.ordinal() > p.peakTier.ordinal()) p.peakTier = tier;
         p.rating = Math.max(p.rating, threshold(tier));
@@ -732,7 +795,7 @@ public class TierManager implements Listener {
         List<String> keys = new ArrayList<>();
         if (arenaId == null) keys.addAll(m.keySet()); else keys.add(key(arenaId));
         for (String k : keys) {
-            TierProfile fresh = new TierProfile(target.getUniqueId(), k, target.getName(), startRating());
+            TierProfile fresh = fresh(target.getUniqueId(), k, target.getName());
             m.put(k, fresh);
             save(fresh);
         }

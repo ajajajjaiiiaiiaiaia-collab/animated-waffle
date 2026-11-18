@@ -57,9 +57,9 @@ public class TierCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(c("&cUnknown arena.")); return true;
                 }
                 TierProfile pr = tm.getFresh(p.getUniqueId(), p.getName(), arena);
-                Tier next = pr.tier.next();
+                Tier next = tm.nextTarget(pr);
                 p.sendMessage(c("&8&m          &r &b" + arena + " &8&m          "));
-                p.sendMessage(c("&7Tier&8: " + pr.tier.colored() + " &8| &7Peak&8: " + pr.peakTier.colored()));
+                p.sendMessage(c("&7Tier&8: " + tm.label(pr) + " &8| &7Peak&8: " + (pr.placed ? pr.peakTier.colored() : tm.unrankedLabel())));
                 p.sendMessage(c("&7Rating&8: &f" + pr.rating + " &8| &7Season peak&8: &f" + pr.seasonPeakRating));
                 p.sendMessage(c("&7Record&8: &a" + pr.wins + "W &c" + pr.losses + "L &8(&7" + pr.games + " this season&8)"));
                 if (pr.defensePending) p.sendMessage(c("&c&l⚠ Tier Defense required &7— next ranked match."));

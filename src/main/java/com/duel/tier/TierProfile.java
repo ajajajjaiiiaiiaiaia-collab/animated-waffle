@@ -17,6 +17,7 @@ public class TierProfile {
     public int losses;
     public boolean challengePending;   // مفتوح له Rankup Challenge
     public long challengeCooldown;     // millis — قبل هذا الوقت ما ينفتح تحدي جديد
+    public boolean placed = true;      // false = Unranked: لازم يفوز بتحدي الترقية عشان يوصل LT5
     public boolean defensePending;     // مطلوب منه Tier Defense
 
     public TierProfile(UUID uuid, String arenaId, String name, int startRating) {
@@ -32,7 +33,7 @@ public class TierProfile {
         c.tier = tier; c.peakTier = peakTier; c.seasonPeakRating = seasonPeakRating;
         c.games = games; c.wins = wins; c.losses = losses;
         c.challengePending = challengePending; c.challengeCooldown = challengeCooldown;
-        c.defensePending = defensePending;
+        c.defensePending = defensePending; c.placed = placed;
         return c;
     }
 }

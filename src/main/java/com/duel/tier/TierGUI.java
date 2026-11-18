@@ -60,7 +60,7 @@ public class TierGUI implements InventoryHolder {
             ItemStack item = arena.getDisplayItem();
             item = (item == null) ? new ItemStack(Material.DIAMOND_SWORD) : item.clone();
             ItemMeta meta = item.getItemMeta();
-            meta.displayName(txt("&b&l" + arena.getId() + " &8» " + p.tier.colored()));
+            meta.displayName(txt("&b&l" + arena.getId() + " &8» " + tm.label(p)));
 
             List<Component> lore = new ArrayList<>();
             lore.add(txt("&7Rating&8: &f" + p.rating + (p.games < tm.placementMatches()
@@ -69,7 +69,7 @@ public class TierGUI implements InventoryHolder {
             lore.add(txt("&7W&8/&7L&8: &a" + p.wins + "&8/&c" + p.losses));
             lore.add(Component.empty());
 
-            Tier next = p.tier.next();
+            Tier next = tm.nextTarget(p);
             if (p.defensePending) {
                 lore.add(txt("&c&l⚠ TIER DEFENSE REQUIRED"));
                 lore.add(txt("&7Your rating fell below &f" + tm.threshold(p.tier) + "&7."));
