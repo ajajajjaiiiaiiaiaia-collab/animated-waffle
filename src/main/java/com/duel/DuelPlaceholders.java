@@ -341,7 +341,7 @@ public class DuelPlaceholders extends PlaceholderExpansion implements Relational
                 java.util.List<com.duel.models.Arena> all = new java.util.ArrayList<>(plugin.getArenaManager().getAllArenas());
                 all.sort((x, y) -> x.getId().compareToIgnoreCase(y.getId()));
                 com.duel.models.Arena first = all.isEmpty() ? null : all.get(0);
-                if (tm.unrankedStart()) return com.duel.tier.TierIcon.withLabel(plugin, first, tm.unrankedLabel());
+                if (tm.unrankedStart()) return "";
                 return com.duel.tier.TierIcon.withTier(plugin, first, com.duel.tier.Tier.LT5);
             }
             return com.duel.tier.TierIcon.withTier(plugin, plugin.getArenaManager().getArena(bp.arenaId), bp.tier);
@@ -349,23 +349,22 @@ public class DuelPlaceholders extends PlaceholderExpansion implements Relational
         if (p.equals("current_icon")) {
             com.duel.models.DuelSession cs = plugin.getDuelManager().getSession(player);
             if (cs == null) return tierPlaceholder(player, "icon");
-            if (tm.isUnranked(id, cs.getArena().getId()))
-                return com.duel.tier.TierIcon.withLabel(plugin, cs.getArena(), tm.unrankedLabel());
+            if (tm.isUnranked(id, cs.getArena().getId())) return "";
             return com.duel.tier.TierIcon.withTier(plugin, cs.getArena(), tm.getTier(id, cs.getArena().getId()));
         }
         if (p.startsWith("icon_")) {
             com.duel.models.Arena ia = plugin.getArenaManager().getArena(p.substring(5));
             if (ia == null) return null;
-            if (tm.isUnranked(id, ia.getId()))
-                return com.duel.tier.TierIcon.withLabel(plugin, ia, tm.unrankedLabel());
+            if (tm.isUnranked(id, ia.getId())) return "";
             return com.duel.tier.TierIcon.withTier(plugin, ia, tm.getTier(id, ia.getId()));
         }
 
-        if (p.equals("best"))       return tm.displayBest(id);
-        if (p.equals("best_plain")) { return (tm.unrankedStart() && tm.getBestPlacedProfile(id) == null) ? "Unranked" : tm.getBestTier(id).name(); }
+        if (p.equals("best"))       return tm.unrankedStart() && tm.getBestPlacedProfile(id) == null ? "" : tm.displayBest(id);
+        if (p.equals("best_plain")) { return (tm.unrankedStart() && tm.getBestPlacedProfile(id) == null) ? "" : tm.getBestTier(id).name(); }
         if (p.equals("current")) {
             com.duel.models.DuelSession s = plugin.getDuelManager().getSession(player);
-            return s != null ? tm.display(id, s.getArena().getId()) : tm.displayBest(id);
+            if (s != null) return tm.isUnranked(id, s.getArena().getId()) ? "" : tm.display(id, s.getArena().getId());
+            return tm.unrankedStart() && tm.getBestPlacedProfile(id) == null ? "" : tm.displayBest(id);
         }
 
         String mode = "colored";
@@ -376,12 +375,12 @@ public class DuelPlaceholders extends PlaceholderExpansion implements Relational
         if (plugin.getArenaManager().getArena(arena) == null) return null;
         com.duel.tier.TierProfile prof = tm.getFresh(id, player.getName(), arena);
         return switch (mode) {
-            case "plain"     -> tm.isUnranked(id, arena) ? "Unranked" : prof.tier.name();
+            case "plain"     -> tm.isUnranked(id, arena) ? "" : prof.tier.name();
             case "rating"    -> String.valueOf(prof.rating);
-            case "peak"      -> tm.isUnranked(id, arena) ? tm.unrankedLabel() : prof.peakTier.colored();
+            case "peak"      -> tm.isUnranked(id, arena) ? "" : prof.peakTier.colored();
             case "challenge" -> String.valueOf(prof.challengePending);
             case "defense"   -> String.valueOf(prof.defensePending);
-            default          -> tm.isUnranked(id, arena) ? tm.unrankedLabel() : prof.tier.colored();
+            default          -> tm.isUnranked(id, arena) ? "" : prof.tier.colored();
         };
     }
 }
