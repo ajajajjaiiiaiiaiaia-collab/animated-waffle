@@ -1,0 +1,17 @@
+name: PearlBounce
+version: '${project.version}'
+main: com.stark.pearlbounce.PearlBouncePlugin
+api-version: '1.21'
+author: STARK NETWORK
+description: Ender pearls bounce off walls instead of teleporting.
+commands:
+  pearlbounce:
+    description: PearlBounce admin command
+    usage: /pearlbounce reload
+    permission: pearlbounce.admin
+permissions:
+  pearlbounce.admin:
+    default: op
+  pearlbounce.bypass:
+    description: Your pearls never bounce
+    default: false

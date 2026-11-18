@@ -1,0 +1,26 @@
+enabled: true
+
+# How many times one pearl can bounce before it behaves normally (teleports on the next hit).
+max-bounces: 2
+
+# Speed kept after each bounce (1.0 = no loss, 0.5 = loses half).
+restitution: 0.7
+
+# Pearls slower than this (blocks/tick) after bouncing just stop bouncing and hit normally.
+min-speed: 0.25
+
+# Which surfaces bounce.
+bounce:
+  walls: true
+  floor: false
+  ceiling: true
+
+# Worlds where bouncing is disabled.
+disabled-worlds: []
+
+effects:
+  sound: true
+  particles: true
+
+messages:
+  reloaded: "&aPearlBounce config reloaded."
