@@ -118,6 +118,7 @@ public class AuthSessionHandler implements LimboSessionHandler {
   private String tempPassword;
   private boolean tokenReceived;
   private boolean dialogMode;
+  private boolean dialogInteracted;
 
   public AuthSessionHandler(Dao<RegisteredPlayer, String> playerDao, Player proxyPlayer, LimboAuth plugin, @Nullable RegisteredPlayer playerInfo) {
     this.playerDao = playerDao;
@@ -364,6 +365,7 @@ public class AuthSessionHandler implements LimboSessionHandler {
       return;
     }
 
+    this.dialogInteracted = true;
     java.util.Map<String, String> values = click.getValues();
     String password = values.getOrDefault(DialogManager.FIELD_PASSWORD, "").trim();
     String command;
@@ -389,14 +391,33 @@ public class AuthSessionHandler implements LimboSessionHandler {
     this.onChat(command);
   }
 
-  private void sendMessage(boolean sendTitle) {
-    if (this.dialogMode) {
+  private void showDialog() {
+    try {
       if (this.totpState) {
         DialogManager.showTotp(this.player);
       } else if (this.playerInfo == null) {
         DialogManager.showRegister(this.player);
       } else {
         DialogManager.showLogin(this.player, this.attempts);
+      }
+    } catch (RuntimeException ignored) {
+      // The player has already left.
+    }
+  }
+
+  private void sendMessage(boolean sendTitle) {
+    if (this.dialogMode) {
+      if (sendTitle) {
+        // The client drops dialogs that arrive while it is still loading the world, so repeat a few times until the player interacts.
+        for (long delay : new long[] {700, 1800, 3500}) {
+          this.player.getScheduledExecutor().schedule(() -> {
+            if (!this.dialogInteracted) {
+              this.showDialog();
+            }
+          }, delay, TimeUnit.MILLISECONDS);
+        }
+      } else {
+        this.showDialog();
       }
     }
 
