@@ -1,0 +1,22 @@
+name: ChristmasTree
+version: 1.0.0
+main: com.stark.christmastree.ChristmasTreePlugin
+api-version: '1.21'
+author: STARK NETWORK
+
+commands:
+  christmastree:
+    description: يبني شجرة كريسمس ضخمة فيها غرف متصلة
+    usage: /christmastree [radius]
+    aliases: [xmastree, شجرة]
+    permission: christmastree.build
+  oaktree:
+    description: يبني شجرة بلوط طبيعية ضخمة وجميلة
+    usage: /oaktree [height] [width]
+    aliases: [bigoak, شجرة_بلوط]
+    permission: christmastree.build
+
+permissions:
+  christmastree.build:
+    description: يسمح ببناء الأشجار
+    default: op
