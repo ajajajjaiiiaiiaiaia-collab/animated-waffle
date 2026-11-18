@@ -86,6 +86,14 @@ public final class TierIcon {
         }
     }
 
+    /** أيقونة الأرينا + نص جاهز (مثل Unranked). */
+    public static String withLabel(DuelPlugin plugin, Arena arena, String label) {
+        String c = plugin.getConfig().getString("tier.tab-icon.color", "");
+        String text = (c == null || c.isBlank()) ? label : (c + org.bukkit.ChatColor.stripColor(label.replace('&', '§')));
+        String s = sprite(plugin, arena);
+        return s.isEmpty() ? text : s + " " + text;
+    }
+
     public static String withTier(DuelPlugin plugin, Arena arena, Tier tier) {
         String c = plugin.getConfig().getString("tier.tab-icon.color", "");
         String text = (c == null || c.isBlank()) ? tier.colored() : c + tier.name();

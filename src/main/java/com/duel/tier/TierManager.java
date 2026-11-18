@@ -77,6 +77,46 @@ public class TierManager implements Listener {
     public int getSeason()            { return season; }
     public int startRating()          { return cfg().getInt("tier.start-rating", 1000); }
     public int placementMatches()     { return cfg().getInt("tier.placement-matches", 3); }
+    /** كم مباراة محسوبة لازم يلعبها اللاعب بالأرينا قبل ما يظهر له تير (0 = يظهر LT5 من أول). */
+    public int unrankedUntilGames()   { return Math.max(0, cfg().getInt("tier.unranked-until-games", 1)); }
+    public String unrankedLabel()     { return cfg().getString("tier.unranked-label", "&7Unranked"); }
+
+    /** true لو اللاعب ما لعب المباريات الكافية بهالأرينا (التير ما يُعرض). */
+    public boolean isUnranked(UUID uuid, String arenaId) {
+        int need = unrankedUntilGames();
+        if (need <= 0) return false;
+        Map<String, TierProfile> m = profiles.get(uuid);
+        TierProfile p = m == null ? null : m.get(key(arenaId));
+        return p == null || p.games < need;
+    }
+
+    /** البروفايل ذو أعلى تير بين الأرينات اللي تأهل فيها (games كافية) — أو null لو ما تأهل بأي وحدة. */
+    public TierProfile getBestRankedProfile(UUID uuid) {
+        int need = unrankedUntilGames();
+        Map<String, TierProfile> m = profiles.get(uuid);
+        if (m == null) return null;
+        TierProfile best = null;
+        for (TierProfile p : m.values()) {
+            if (p.games < Math.max(need, 0)) continue;
+            if (need <= 0 && p.games <= 0 && best != null) continue;
+            if (best == null || p.tier.ordinal() > best.tier.ordinal()
+                    || (p.tier == best.tier && p.rating > best.rating)) best = p;
+        }
+        return best;
+    }
+
+    /** نص التير للعرض (بصيغة &): التير الملوّن أو "Unranked". */
+    public String display(UUID uuid, String arenaId) {
+        return isUnranked(uuid, arenaId) ? unrankedLabel() : getTier(uuid, arenaId).colored();
+    }
+
+    /** أعلى تير للعرض (بصيغة &) أو "Unranked" لو ما تأهل بأي أرينا. */
+    public String displayBest(UUID uuid) {
+        if (unrankedUntilGames() <= 0) return getBestTier(uuid).colored();
+        TierProfile bp = getBestRankedProfile(uuid);
+        return bp == null ? unrankedLabel() : bp.tier.colored();
+    }
+
     public int challengeRounds()      { return Math.max(1, cfg().getInt("tier.challenge-rounds", 3)); }
     private int defenseBuffer()       { return cfg().getInt("tier.defense-buffer", 60); }
 

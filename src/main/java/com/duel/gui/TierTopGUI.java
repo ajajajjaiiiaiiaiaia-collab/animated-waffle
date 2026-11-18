@@ -220,10 +220,10 @@ public class TierTopGUI implements Listener {
     private static ItemStack arenaButton(DuelPlugin plugin, Player viewer, Arena arena, boolean selected) {
         ItemStack item = new ItemStack(arenaMaterial(arena));
         ItemMeta meta = item.getItemMeta();
-        Tier t = plugin.getTierManager().getTier(viewer.getUniqueId(), arena.getId());
+        String shownTier = plugin.getTierManager().display(viewer.getUniqueId(), arena.getId()).replace('&', '§');
         meta.displayName(text(arena.getId().toUpperCase(), selected ? NamedTextColor.GREEN : NamedTextColor.AQUA, true));
         List<Component> lore = new ArrayList<>();
-        lore.add(text("Your tier: ", NamedTextColor.GRAY, false).append(legacy(t.chat())));
+        lore.add(text("Your tier: ", NamedTextColor.GRAY, false).append(legacy(shownTier)));
         lore.add(Component.empty());
         lore.add(selected
                 ? text("Currently viewing", NamedTextColor.GREEN, false)
@@ -262,7 +262,8 @@ public class TierTopGUI implements Listener {
         meta.displayName(text("Your rank: ", NamedTextColor.GREEN, true)
                 .append(text(shown, NamedTextColor.WHITE, true)));
         List<Component> lore = new ArrayList<>();
-        lore.add(text("Tier: ", NamedTextColor.GRAY, false).append(legacy(mine.tier.chat())));
+        lore.add(text("Tier: ", NamedTextColor.GRAY, false).append(legacy(
+                plugin.getTierManager().display(player.getUniqueId(), mine.arenaId).replace('&', '§'))));
         lore.add(text("Rating: ", NamedTextColor.GRAY, false).append(text(String.valueOf(mine.rating), NamedTextColor.WHITE, false)));
         meta.lore(lore);
         item.setItemMeta(meta);
