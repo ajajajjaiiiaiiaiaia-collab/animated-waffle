@@ -146,7 +146,7 @@ public final class TierTopDialog {
                 .build();
         for (Arena other : sortedArenas(plugin)) {
             if (other.getId().equalsIgnoreCase(arena.getId())) continue;
-            String shownTier = tm.display(player.getUniqueId(), other.getId()).replace('&', '§');
+            Tier t = tm.getTier(player.getUniqueId(), other.getId());
             Component label = Component.text()
                     .append(TierIcon.component(plugin, other))
                     .append(Component.space())
@@ -154,7 +154,7 @@ public final class TierTopDialog {
                     .build();
             Component tip = Component.text()
                     .append(Component.text("Your tier: ", NamedTextColor.GRAY))
-                    .append(legacy(shownTier))
+                    .append(legacy(t.chat()))
                     .append(Component.newline())
                     .append(Component.text("Click to open leaderboard", NamedTextColor.YELLOW))
                     .build();
