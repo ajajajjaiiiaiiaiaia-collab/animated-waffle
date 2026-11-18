@@ -1,0 +1,17 @@
+name: ShieldPush
+version: '${project.version}'
+main: com.stark.shieldpush.ShieldPushPlugin
+api-version: '1.21'
+author: STARK NETWORK
+description: Pushes a player back when an axe hit disables their shield.
+commands:
+  shieldpush:
+    description: ShieldPush admin command
+    usage: /shieldpush reload
+    permission: shieldpush.admin
+permissions:
+  shieldpush.admin:
+    default: op
+  shieldpush.bypass:
+    description: Never pushed when your shield is disabled
+    default: false
