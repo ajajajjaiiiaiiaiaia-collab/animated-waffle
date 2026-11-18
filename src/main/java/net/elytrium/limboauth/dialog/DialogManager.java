@@ -35,6 +35,7 @@ import net.elytrium.limboauth.Settings;
 public final class DialogManager {
 
   public static final String SUBMIT_ID = "limboauth:submit";
+  public static final String QUIT_ID = "limboauth:quit";
   public static final String FIELD_PASSWORD = "password";
   public static final String FIELD_REPEAT = "repeat";
   public static final String FIELD_TOTP = "code";
@@ -72,7 +73,7 @@ public final class DialogManager {
     List<Object> inputs = new ArrayList<>();
     inputs.add(input(FIELD_PASSWORD, s.PASSWORD_LABEL));
     String body = s.LOGIN_BODY.replace("{0}", String.valueOf(attemptsLeft));
-    send(player, dialog(s.LOGIN_TITLE, body, inputs, s.LOGIN_BUTTON));
+    send(player, dialog(s.LOGIN_TITLE, body, inputs, s.LOGIN_BUTTON, s));
   }
 
   public static void showRegister(LimboPlayer player) {
@@ -80,14 +81,14 @@ public final class DialogManager {
     List<Object> inputs = new ArrayList<>();
     inputs.add(input(FIELD_PASSWORD, s.PASSWORD_LABEL));
     inputs.add(input(FIELD_REPEAT, s.REPEAT_LABEL));
-    send(player, dialog(s.REGISTER_TITLE, s.REGISTER_BODY, inputs, s.REGISTER_BUTTON));
+    send(player, dialog(s.REGISTER_TITLE, s.REGISTER_BODY, inputs, s.REGISTER_BUTTON, s));
   }
 
   public static void showTotp(LimboPlayer player) {
     Settings.MAIN.DIALOG s = Settings.IMP.MAIN.DIALOG;
     List<Object> inputs = new ArrayList<>();
     inputs.add(input(FIELD_TOTP, s.TOTP_LABEL));
-    send(player, dialog(s.TOTP_TITLE, s.TOTP_BODY, inputs, s.TOTP_BUTTON));
+    send(player, dialog(s.TOTP_TITLE, s.TOTP_BODY, inputs, s.TOTP_BUTTON, s));
   }
 
   private static void send(LimboPlayer player, Map<String, Object> dialog) {
@@ -112,9 +113,10 @@ public final class DialogManager {
     return map;
   }
 
-  private static Map<String, Object> dialog(String title, String body, List<Object> inputs, String button) {
+  private static Map<String, Object> dialog(String title, String body, List<Object> inputs, String button,
+                                         Settings.MAIN.DIALOG s) {
     Map<String, Object> dialog = new LinkedHashMap<>();
-    dialog.put("type", "minecraft:notice");
+    dialog.put("type", "minecraft:multi_action");
     dialog.put("title", text(title, "#5EEAD4"));
     dialog.put("can_close_with_escape", false);
     dialog.put("pause", false);
@@ -129,14 +131,25 @@ public final class DialogManager {
     dialog.put("body", bodies);
     dialog.put("inputs", inputs);
 
+    List<Object> actions = new ArrayList<>();
+    actions.add(button(button, "#86EFAC", SUBMIT_ID));
+    if (s.QUIT_BUTTON_ENABLED) {
+      actions.add(button(s.QUIT_BUTTON, "#FCA5A5", QUIT_ID));
+    }
+
+    dialog.put("actions", actions);
+    dialog.put("columns", 1);
+    return dialog;
+  }
+
+  private static Map<String, Object> button(String label, String color, String id) {
     Map<String, Object> action = new LinkedHashMap<>();
     action.put("type", "minecraft:dynamic/custom");
-    action.put("id", SUBMIT_ID);
+    action.put("id", id);
     Map<String, Object> actionButton = new LinkedHashMap<>();
-    actionButton.put("label", text(button, "#86EFAC"));
+    actionButton.put("label", text(label, color));
     actionButton.put("width", 260);
     actionButton.put("action", action);
-    dialog.put("action", actionButton);
-    return dialog;
+    return actionButton;
   }
 }

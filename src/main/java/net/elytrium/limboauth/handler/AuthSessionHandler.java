@@ -361,7 +361,16 @@ public class AuthSessionHandler implements LimboSessionHandler {
   }
 
   private void handleDialogClick(ClickActionPacket click) {
-    if (!this.dialogMode || this.loginOnlyByMod || !DialogManager.SUBMIT_ID.equals(click.getId())) {
+    if (!this.dialogMode || this.loginOnlyByMod) {
+      return;
+    }
+
+    if (DialogManager.QUIT_ID.equals(click.getId())) {
+      this.proxyPlayer.disconnect(LimboAuth.getSerializer().deserialize(Settings.IMP.MAIN.DIALOG.QUIT_KICK));
+      return;
+    }
+
+    if (!DialogManager.SUBMIT_ID.equals(click.getId())) {
       return;
     }
 
@@ -407,7 +416,7 @@ public class AuthSessionHandler implements LimboSessionHandler {
 
   private void sendMessage(boolean sendTitle) {
     if (this.dialogMode) {
-      if (sendTitle) {
+      if (sendTitle && !this.dialogInteracted) {
         // The client drops dialogs that arrive while it is still loading the world, so repeat a few times until the player interacts.
         for (long delay : new long[] {700, 1800, 3500}) {
           this.player.getScheduledExecutor().schedule(() -> {

@@ -277,6 +277,9 @@ public class Settings extends YamlConfig {
       public String PASSWORD_LABEL = "Password";
       public String REPEAT_LABEL = "Repeat password";
       public String TOTP_LABEL = "Code";
+      public boolean QUIT_BUTTON_ENABLED = true;
+      public String QUIT_BUTTON = "Leave server";
+      public String QUIT_KICK = "&cYou left the login screen.";
       public String NO_SPACES = "&cPassword must not contain spaces.";
 
     }
