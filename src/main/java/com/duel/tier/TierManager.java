@@ -78,7 +78,7 @@ public class TierManager implements Listener {
     public int startRating()          { return cfg().getInt("tier.start-rating", 1000); }
     public int placementMatches()     { return cfg().getInt("tier.placement-matches", 3); }
     /** كم مباراة محسوبة لازم يلعبها اللاعب بالأرينا قبل ما يظهر له تير (0 = يظهر LT5 من أول). */
-    public int unrankedUntilGames()   { return Math.max(0, cfg().getInt("tier.unranked-until-games", 1)); }
+    public int unrankedUntilGames()   { return Math.max(0, cfg().getInt("tier.unranked-until-games", 0)); }
     public String unrankedLabel()     { return cfg().getString("tier.unranked-label", "&7Unranked"); }
 
     /** true لو اللاعب ما لعب المباريات الكافية بهالأرينا (التير ما يُعرض). */
