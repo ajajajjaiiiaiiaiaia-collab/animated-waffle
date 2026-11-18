@@ -1,0 +1,226 @@
+//file:noinspection GroovyAssignabilityCheck
+
+plugins {
+    id("java")
+    id("checkstyle")
+    id("maven-publish")
+    id("com.github.spotbugs").version("6.1.7")
+    id("org.cadixdev.licenser").version("0.6.1")
+    id("com.gradleup.shadow").version("8.3.6")
+}
+
+setGroup("net.elytrium")
+setVersion("1.1.14")
+
+java {
+    setSourceCompatibility(JavaVersion.VERSION_17)
+    setTargetCompatibility(JavaVersion.VERSION_17)
+}
+
+compileJava {
+    getOptions().setEncoding("UTF-8")
+}
+
+repositories {
+    mavenCentral()
+
+    maven {
+        setName("elytrium-repo")
+        setUrl("https://maven.elytrium.net/repo/")
+    }
+    maven {
+        setName("papermc-repo")
+        setUrl("https://repo.papermc.io/repository/maven-public/")
+    }
+    maven {
+        setName("opencollab-snapshot")
+        setUrl("https://repo.opencollab.dev/maven-snapshots")
+    }
+}
+
+dependencies {
+    compileOnly("net.elytrium.limboapi:api:$limboapiVersion")
+    compileOnly("net.elytrium.commons:config:$elytriumCommonsVersion")
+    compileOnly("net.elytrium.commons:utils:$elytriumCommonsVersion")
+    compileOnly("net.elytrium.commons:velocity:$elytriumCommonsVersion")
+    compileOnly("net.elytrium.commons:kyori:$elytriumCommonsVersion")
+
+    compileOnly("com.velocitypowered:velocity-api:$velocityVersion")
+    annotationProcessor("com.velocitypowered:velocity-api:$velocityVersion")
+    compileOnly("com.velocitypowered:velocity-proxy:$velocityVersion") // From Elytrium Repo.
+
+    // Needs for some velocity methods.
+    compileOnly("io.netty:netty-codec:$nettyVersion")
+    compileOnly("io.netty:netty-handler:$nettyVersion")
+
+    compileOnly("org.geysermc.floodgate:api:$floodgateVersion")
+
+    implementation("at.favre.lib:bcrypt:0.9.0")
+    implementation("dev.samstevens.totp:totp:1.7.1")
+
+    implementation("com.j256.ormlite:ormlite-jdbc:6.1")
+    implementation("de.mkammerer:argon2-jvm-nolibs:2.11")
+
+    implementation("io.whitfin:siphash:2.0.0")
+
+    implementation("org.bstats:bstats-velocity:$bstatsVersion")
+
+    compileOnly("com.github.spotbugs:spotbugs-annotations:$spotbugsVersion")
+}
+
+shadowJar {
+    getArchiveClassifier().set("")
+
+    exclude("META-INF/licenses/**")
+    exclude("META-INF/maven/**")
+    exclude("META-INF/versions/**")
+    exclude("META-INF/AL2.0")
+    exclude("META-INF/INFO_BIN")
+    exclude("META-INF/INFO_SRC")
+    exclude("META-INF/LGPL2.1")
+    exclude("META-INF/LICENSE")
+    exclude("META-INF/NOTICE")
+    exclude("META-INF/README")
+    exclude("META-INF/*.txt")
+    exclude("google/protobuf/**")
+    exclude("com/google/protobuf/**")
+    exclude("com/j256/ormlite/**/*.txt")
+    exclude("com/mysql/cj/x/**")
+    exclude("com/mysql/cj/xdevapi/**")
+    exclude("com/sun/jna/aix-ppc*/**")
+    exclude("com/sun/jna/darwin-aarch64/**")
+    exclude("com/sun/jna/freebsd-*/**")
+    exclude("com/sun/jna/linux-arm*/**")
+    exclude("com/sun/jna/linux-mips64el/**")
+    exclude("com/sun/jna/linux-ppc*/**")
+    exclude("com/sun/jna/linux-riscv64/**")
+    exclude("com/sun/jna/linux-s390x/**")
+    exclude("com/sun/jna/linux-x86/**")
+    exclude("com/sun/jna/openbsd-*/**")
+    exclude("com/sun/jna/sunos-*/**")
+    exclude("com/sun/jna/win32-x86/**")
+    exclude("org/apache/commons/codec/language/**")
+    exclude("org/checkerframework/**")
+    exclude("**/package-info.class")
+
+    minimize()
+
+    relocate("at.favre.lib", "net.elytrium.limboauth.thirdparty.at.favre.lib")
+    relocate("com.j256.ormlite", "net.elytrium.limboauth.thirdparty.com.j256.ormlite")
+    relocate("com.sun.jna", "net.elytrium.limboauth.thirdparty.com.sun.jna") {
+        exclude("com.sun.jna.Native") // For compatibility with native methods.
+    }
+    relocate("de.mkammerer.argon2", "net.elytrium.limboauth.thirdparty.de.mkammerer.argon2")
+    relocate("dev.samstevens.totp", "net.elytrium.limboauth.thirdparty.dev.samstevens.totp")
+    relocate("org.apache.commons.codec", "net.elytrium.limboauth.thirdparty.org.apache.commons.codec")
+    relocate("org.bstats", "net.elytrium.limboauth.thirdparty.org.bstats")
+    relocate("net.elytrium.commons.velocity", "net.elytrium.limboapi.thirdparty.commons.velocity")
+    relocate("net.elytrium.commons.kyori", "net.elytrium.limboapi.thirdparty.commons.kyori")
+    relocate("net.elytrium.commons.config", "net.elytrium.limboapi.thirdparty.commons.config")
+}
+
+license {
+    setHeader(file("HEADER.txt"))
+}
+
+checkstyle {
+    setToolVersion("10.1")
+    setConfigFile(file("${this.getRootDir()}/config/checkstyle/checkstyle.xml"))
+    setConfigProperties("configDirectory": "${this.getRootDir()}/config/checkstyle")
+
+    // The build should immediately fail if we have errors.
+    setMaxErrors(0)
+    setMaxWarnings(0)
+}
+
+spotbugsMain {
+    setExcludeFilter(file("${this.getRootDir()}/config/spotbugs/suppressions.xml"))
+
+    reports {
+        html {
+            getRequired().set(true)
+            getOutputLocation().set(file("${this.getBuildDir()}/reports/spotbugs/main/spotbugs.html"))
+            setStylesheet("fancy-hist.xsl")
+        }
+    }
+}
+
+task javadocJar(type: Jar) {
+    getArchiveClassifier().set("javadoc")
+    from(javadoc)
+}
+
+task sourcesJar(type: Jar) {
+    getArchiveClassifier().set("sources")
+    from(sourceSets.main.getAllSource())
+}
+
+publishing {
+    repositories {
+        maven {
+            credentials {
+                setUsername(System.getenv("PUBLISH_USERNAME"))
+                setPassword(System.getenv("PUBLISH_PASSWORD"))
+            }
+
+            setName("elytrium-repo")
+            setUrl("https://maven.elytrium.net/repo/")
+        }
+    }
+
+    publications {
+        maven(MavenPublication) {
+            from(getComponents().java)
+
+            artifact(javadocJar)
+            artifact(sourcesJar)
+        }
+    }
+}
+
+javadoc {
+    getOptions().setEncoding("UTF-8")
+    getOptions().setCharSet("UTF-8")
+    getOptions().setSource("17")
+    getOptions().links("https://docs.oracle.com/en/java/javase/11/docs/api/")
+
+    // Remove "undefined" from search paths when generating javadoc for a non-modular project. (JDK-8215291)
+    if (JavaVersion.current() == JavaVersion.VERSION_11) {
+        getOptions().addBooleanOption("-no-module-directories", true)
+    }
+}
+
+artifacts {
+    archives(javadocJar)
+    archives(sourcesJar)
+}
+
+sourceSets.main.getJava().srcDir(
+        getTasks().register("generateTemplates", Copy) {
+            task -> {
+                String version = getVersion().contains("-") ? "${getVersion()} (git-${getCurrentShortRevision()})" : getVersion()
+                task.getInputs().properties("version": version)
+                task.from(file("src/main/templates")).into(getLayout().getBuildDirectory().dir("generated/sources/templates"))
+                task.expand("version": version)
+            }
+        }.map {
+            it.getOutputs()
+        }
+)
+
+assemble.dependsOn(shadowJar)
+
+String getCurrentShortRevision() {
+    OutputStream outputStream = new ByteArrayOutputStream()
+    exec {
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            commandLine("cmd", "/c", "git rev-parse --short HEAD")
+        } else {
+            commandLine("bash", "-c", "git rev-parse --short HEAD")
+        }
+
+        setStandardOutput(outputStream)
+    }
+
+    return outputStream.toString().trim()
+}
