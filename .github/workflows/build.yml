@@ -19,7 +19,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          JAR=$(ls build/libs/limboauth*.jar | grep -v plain | head -1)
+          ls -l build/libs
+          JAR=$(ls build/libs/*.jar | grep -v -i "javadoc\|sources\|plain" | head -1)
+          unzip -l "$JAR" | grep -q "velocity-plugin.json" || { echo "missing velocity-plugin.json in $JAR"; exit 1; }
           cp "$JAR" LimboAuth.jar
           gh release delete limboauth-dialog-latest --cleanup-tag -y || true
           gh release create limboauth-dialog-latest LimboAuth.jar --title "LimboAuth Dialog" --notes "Dialog GUI for 1.21.6+"
