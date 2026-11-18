@@ -273,8 +273,8 @@ tier:
   k-factor: 32
   placement-matches: 3          # أول مباريات بالموسم تستخدم placement-k عشان توصل لمستواك بسرعة
   placement-k: 40
-  # اللاعب الجديد ما يظهر له تير (Unranked) لين يلعب هذا العدد من المباريات المحسوبة بالأرينا. 0 = (الافتراضي) اللاعب يظهر LT5 من أول.
-  unranked-until-games: 0
+  # اللاعب الجديد ما يظهر له تير (Unranked) لين يلعب هذا العدد من المباريات المحسوبة بالأرينا. 0 = يظهر LT5 من أول.
+  unranked-until-games: 1
   unranked-label: "&7Unranked"
   rating-floor: 0
   challenge-rounds: 3           # مباراة Rankup Challenge = كم راوند
