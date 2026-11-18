@@ -124,7 +124,7 @@ public final class LeaderboardDialog {
         }
         if (flag == null) flag = Component.text("  ");
 
-        Component.Builder b = Component.text()
+        net.kyori.adventure.text.TextComponent.Builder b = Component.text()
                 .append(Component.text(pad("#" + rank, RANK_PX), rankColor))
                 .append(flag)
                 .append(Component.space())
