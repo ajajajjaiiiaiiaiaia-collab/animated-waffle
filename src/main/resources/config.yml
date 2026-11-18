@@ -5,10 +5,10 @@ enabled: true
 require-axe: true
 
 push:
-  # Horizontal strength (blocks/tick). Vanilla knockback is about 0.4.
-  horizontal: 0.9
+  # Horizontal strength (blocks/tick). Matched to a reference clip (about 2-3 blocks). Vanilla knockback is about 0.4.
+  horizontal: 0.3
   # Upward velocity added to the push.
-  vertical: 0.35
+  vertical: 0.3
   # Keep the victim's current velocity and add to it (false = replace it).
   additive: false
 

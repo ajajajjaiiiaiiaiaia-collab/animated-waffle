@@ -49,8 +49,8 @@ public final class ShieldPushPlugin extends JavaPlugin implements Listener {
         reloadConfig();
         enabled = getConfig().getBoolean("enabled", true);
         requireAxe = getConfig().getBoolean("require-axe", true);
-        horizontal = getConfig().getDouble("push.horizontal", 0.9);
-        vertical = getConfig().getDouble("push.vertical", 0.35);
+        horizontal = getConfig().getDouble("push.horizontal", 0.3);
+        vertical = getConfig().getDouble("push.vertical", 0.3);
         additive = getConfig().getBoolean("push.additive", false);
         internalCooldown = getConfig().getInt("internal-cooldown-ticks", 10);
         disabledWorlds = new HashSet<>(getConfig().getStringList("disabled-worlds"));
