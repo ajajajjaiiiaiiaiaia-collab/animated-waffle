@@ -165,6 +165,7 @@ public class DuelPlugin extends JavaPlugin {
 
         getCommand("settings").setExecutor(new SettingsCommand(this));
 
+        getCommand("leaderboard").setExecutor(new com.duel.commands.LeaderboardCommand(this));
         com.duel.commands.TierCommand tierCmd = new com.duel.commands.TierCommand(this);
         getCommand("tier").setExecutor(tierCmd);
         getCommand("tier").setTabCompleter(tierCmd);

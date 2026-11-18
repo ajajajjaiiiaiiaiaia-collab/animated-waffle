@@ -52,6 +52,11 @@ commands:
     usage: /tier [info|top|hall|list|admin]
     aliases: [tiers]
     permission: duelplugin.play
+  leaderboard:
+    description: Open the overall leaderboard (total tier points from all kits)
+    usage: /leaderboard
+    aliases: [lb]
+    permission: duelplugin.play
   tiertop:
     description: Open the tier leaderboard dialog
     usage: /tiertop [arena]

@@ -277,6 +277,18 @@ tier:
   unranked-start: true
   unranked-threshold: 1020      # التقييم اللي يفتح له تحدي الوصول لـ LT5 (البداية 1000)
   unranked-label: "&7Unranked"
+  # نقاط كل تير بلوحة الصدارة العامة (/leaderboard): مجموع تيراته من كل الكيتات
+  points:
+    LT5: 1
+    HT5: 2
+    LT4: 3
+    HT4: 4
+    LT3: 6
+    HT3: 10
+    LT2: 16
+    HT2: 28
+    LT1: 44
+    HT1: 60
   rating-floor: 0
   challenge-rounds: 3           # مباراة Rankup Challenge = كم راوند
   challenge-cooldown-minutes: 30  # بعد خسارة التحدي، كم دقيقة قبل ما ينفتح له تحدي ثاني

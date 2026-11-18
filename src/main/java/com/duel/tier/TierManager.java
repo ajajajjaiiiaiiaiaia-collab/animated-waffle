@@ -36,6 +36,42 @@ import java.util.logging.Level;
 public class TierManager implements Listener {
 
     public record TopEntry(String name, UUID uuid, int rating, Tier tier) {}
+    public record KitTier(String arenaId, Tier tier) {}
+    public record OverallEntry(String name, UUID uuid, int points, List<KitTier> kits) {}
+
+    private volatile List<OverallEntry> overallCache = List.of();
+
+    private static int defaultPoints(Tier t) {
+        return switch (t) {
+            case LT5 -> 1; case HT5 -> 2; case LT4 -> 3; case HT4 -> 4; case LT3 -> 6;
+            case HT3 -> 10; case LT2 -> 16; case HT2 -> 28; case LT1 -> 44; case HT1 -> 60;
+        };
+    }
+
+    /** نقاط التير (config: tier.points.<TIER>). */
+    public int pointsOf(Tier t) { return cfg().getInt("tier.points." + t.name(), defaultPoints(t)); }
+
+    public List<OverallEntry> getOverall() { return overallCache; }
+
+    /** مجموع نقاط اللاعب من كل الأرينات اللي تأهل فيها. */
+    public int overallPoints(UUID uuid) {
+        Map<String, TierProfile> m = profiles.get(uuid);
+        if (m == null) return 0;
+        int sum = 0;
+        for (TierProfile p : m.values()) {
+            if (p.placed && p.games > 0 && plugin.getArenaManager().getArena(p.arenaId) != null) sum += pointsOf(p.tier);
+        }
+        return sum;
+    }
+
+    /** مركز اللاعب بالترتيب العام (1 = الأول)، أو -1 لو بدون نقاط. */
+    public int overallRank(UUID uuid) {
+        int mine = overallPoints(uuid);
+        if (mine <= 0) return -1;
+        int better = 0;
+        for (OverallEntry e : overallCache) if (e.points() > mine && !e.uuid().equals(uuid)) better++;
+        return better + 1;
+    }
 
     /** سياق مباراة ranked: مين متحدّي ومين مدافع. */
     private static final class MatchContext {
@@ -590,6 +626,39 @@ public class TierManager implements Listener {
         });
     }
 
+    private void refreshOverall(List<String> arenaIds) {
+        Set<String> valid = new HashSet<>(arenaIds);
+        Map<UUID, OverallEntry> acc = new HashMap<>();
+        Map<UUID, List<KitTier>> kits = new HashMap<>();
+        Map<UUID, String> names = new HashMap<>();
+        Map<UUID, Integer> pts = new HashMap<>();
+        try (Connection conn = plugin.getDatabaseManager().getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT uuid, name, arena_id, tier FROM tier_profiles WHERE games > 0 AND placed = 1");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                String arena = rs.getString("arena_id");
+                if (!valid.contains(arena)) continue;
+                UUID id = UUID.fromString(rs.getString("uuid"));
+                Tier t = Tier.parse(rs.getString("tier"), Tier.LT5);
+                names.put(id, rs.getString("name"));
+                pts.merge(id, pointsOf(t), Integer::sum);
+                kits.computeIfAbsent(id, x -> new ArrayList<>()).add(new KitTier(arena, t));
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "[Tier] overall refresh failed", e);
+            return;
+        }
+        List<OverallEntry> out = new ArrayList<>();
+        for (UUID id : pts.keySet()) {
+            List<KitTier> k = kits.get(id);
+            k.sort((a, b) -> b.tier().ordinal() - a.tier().ordinal());
+            out.add(new OverallEntry(names.get(id), id, pts.get(id), k));
+        }
+        out.sort((a, b) -> b.points() != a.points() ? b.points() - a.points() : a.name().compareToIgnoreCase(b.name()));
+        overallCache = out;
+    }
+
     private void startTopRefresher() {
         plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
             if (!topDirty) return;
@@ -614,6 +683,7 @@ public class TierManager implements Listener {
                     }
                     topCache.put(id, list);
                 }
+                refreshOverall(ids);
             });
         }, 100L, 200L);
     }
