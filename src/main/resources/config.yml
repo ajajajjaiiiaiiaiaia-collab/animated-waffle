@@ -1,0 +1,48 @@
+update-ticks: 20
+hide-own-above: true
+disabled-worlds: []
+leave-other-teams-alone: true
+
+above:
+  offset: 0.38
+  background: "#00000000"
+  shadow: true
+  see-through: false
+
+variables:
+  rank:
+    text: "%luckperms_prefix%"
+    color: "#FFD740"
+  tier:
+    text: "%duel_tier_icon%"
+    color: "#FF7EB6"
+  health:
+    text: "{health}❤"
+    color: "#FF5C7A"
+  ping:
+    text: "{ping}ms"
+    color: "#86EFAC"
+  world:
+    text: "{world}"
+    color: "gradient:#5EEAD4:#60A5FA"
+
+profiles:
+  default:
+    permission: ""
+    priority: 0
+    name-color: WHITE
+    prefix: ""
+    suffix: " <health>"
+    above:
+      - "<rank>"
+    below: "<ping>"
+  staff:
+    permission: starktags.profile.staff
+    priority: 10
+    name-color: AQUA
+    prefix: "<gradient:#FF4FA3:#9D4DFF><bold>STAFF</bold></gradient> "
+    suffix: " <health>"
+    above:
+      - "<rank>"
+      - "<tier>"
+    below: "<ping>"

@@ -1,0 +1,16 @@
+name: StarkTags
+version: '${project.version}'
+main: com.stark.tags.StarkTagsPlugin
+api-version: '1.21'
+author: STARK NETWORK
+description: Colored variables above, beside and below player names.
+softdepend: [PlaceholderAPI]
+commands:
+  starktags:
+    description: StarkTags admin command
+    usage: /starktags reload
+    aliases: [stags]
+    permission: starktags.admin
+permissions:
+  starktags.admin:
+    default: op
