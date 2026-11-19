@@ -1,0 +1,14 @@
+name: PearlCatch
+version: '${project.version}'
+main: com.stark.pearlcatch.PearlCatchPlugin
+api-version: '1.21'
+author: STARK NETWORK
+description: Makes the wind charge + ender pearl catch reliable on laggy servers.
+commands:
+  pearlcatch:
+    description: PearlCatch admin command
+    usage: /pearlcatch reload
+    permission: pearlcatch.admin
+permissions:
+  pearlcatch.admin:
+    default: op

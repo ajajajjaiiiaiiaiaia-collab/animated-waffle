@@ -1,0 +1,16 @@
+enabled: true
+
+# A wind charge that gets this close (blocks) to your own ender pearl counts as a hit,
+# even if the server missed the collision because of lag.
+assist-radius: 2.5
+
+# Damage taken when the pearl teleports you (vanilla is 5.0, 0 disables it).
+teleport-damage: 0.0
+
+# Only your own wind charge can catch your own pearl.
+own-only: true
+
+disabled-worlds: []
+
+messages:
+  reloaded: "&aPearlCatch config reloaded."
