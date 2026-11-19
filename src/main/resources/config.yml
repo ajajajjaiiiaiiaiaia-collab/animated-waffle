@@ -9,6 +9,12 @@ restitution: 0.7
 # Pearls slower than this (blocks/tick) after bouncing just stop bouncing and hit normally.
 min-speed: 0.25
 
+# Pearl clutch protection: pearls that hit within this many blocks of the thrower, or within
+# this many ticks of being thrown, never bounce and teleport immediately.
+clutch:
+  radius: 6.0
+  min-flight-ticks: 10
+
 # Which surfaces bounce.
 bounce:
   walls: true

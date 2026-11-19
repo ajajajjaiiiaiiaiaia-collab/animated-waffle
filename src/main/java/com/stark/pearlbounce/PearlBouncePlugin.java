@@ -28,6 +28,8 @@ public final class PearlBouncePlugin extends JavaPlugin implements Listener {
     private int maxBounces;
     private double restitution;
     private double minSpeed;
+    private double clutchRadius;
+    private int clutchTicks;
     private boolean walls, floor, ceiling, sound, particles;
     private Set<String> disabledWorlds = new HashSet<>();
 
@@ -49,6 +51,8 @@ public final class PearlBouncePlugin extends JavaPlugin implements Listener {
         maxBounces = getConfig().getInt("max-bounces", 2);
         restitution = getConfig().getDouble("restitution", 0.7);
         minSpeed = getConfig().getDouble("min-speed", 0.25);
+        clutchRadius = getConfig().getDouble("clutch.radius", 6.0);
+        clutchTicks = getConfig().getInt("clutch.min-flight-ticks", 10);
         walls = getConfig().getBoolean("bounce.walls", true);
         floor = getConfig().getBoolean("bounce.floor", false);
         ceiling = getConfig().getBoolean("bounce.ceiling", true);
@@ -81,6 +85,13 @@ public final class PearlBouncePlugin extends JavaPlugin implements Listener {
 
         ProjectileSource src = pearl.getShooter();
         if (src instanceof Player p && p.hasPermission("pearlbounce.bypass")) return;
+
+        // Pearl clutch: a pearl that lands close to the thrower (or hits very early) must teleport instantly, never bounce.
+        if (src instanceof Player thrower) {
+            if (pearl.getTicksLived() < clutchTicks) return;
+            if (thrower.getWorld().equals(pearl.getWorld())
+                    && thrower.getLocation().distanceSquared(pearl.getLocation()) <= clutchRadius * clutchRadius) return;
+        }
 
         boolean vertical = face == BlockFace.UP || face == BlockFace.DOWN;
         if (face == BlockFace.UP && !floor) return;
