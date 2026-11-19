@@ -1,0 +1,19 @@
+name: Reinstall plugins
+on:
+  push:
+    branches: [reinstall]
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Quarantine and reinstall
+        env:
+          API_KEY: ${{ secrets.PANEL_API_KEY }}
+          PANEL_URL: https://panel.primehost.cc
+          SERVER_ID: 884c1c8f
+        run: node reinstall-plugins.mjs --apply
