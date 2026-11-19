@@ -33,6 +33,8 @@ public final class PearlCatchPlugin extends JavaPlugin implements Listener {
 
     /** Wind charges in flight -> position on the previous tick. */
     private final Map<UUID, Location> tracked = new HashMap<>();
+    /** Ender pearls in flight (only these are ever checked, so there are no world-wide entity searches). */
+    private final Set<UUID> pearls = new HashSet<>();
     private BukkitTask task;
 
     @Override
@@ -66,10 +68,15 @@ public final class PearlCatchPlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onLaunch(ProjectileLaunchEvent e) {
-        if (!enabled || !(e.getEntity() instanceof WindCharge wc)) return;
-        if (disabledWorlds.contains(wc.getWorld().getName())) return;
-        tracked.put(wc.getUniqueId(), wc.getLocation());
-        startTask();
+        if (!enabled) return;
+        if (disabledWorlds.contains(e.getEntity().getWorld().getName())) return;
+        if (e.getEntity() instanceof EnderPearl pearl) {
+            pearls.add(pearl.getUniqueId());
+            startTask();
+        } else if (e.getEntity() instanceof WindCharge wc) {
+            tracked.put(wc.getUniqueId(), wc.getLocation());
+            startTask();
+        }
     }
 
     private void startTask() {
@@ -78,6 +85,18 @@ public final class PearlCatchPlugin extends JavaPlugin implements Listener {
     }
 
     private void tick() {
+        pearls.removeIf(id -> {
+            Entity en = getServer().getEntity(id);
+            return en == null || !en.isValid();
+        });
+        if (pearls.isEmpty()) {
+            tracked.entrySet().removeIf(en -> !(getServer().getEntity(en.getKey()) instanceof WindCharge w) || !w.isValid());
+            if (tracked.isEmpty() && task != null) {
+                task.cancel();
+                task = null;
+            }
+            return;
+        }
         Iterator<Map.Entry<UUID, Location>> it = tracked.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, Location> en = it.next();
@@ -100,7 +119,7 @@ public final class PearlCatchPlugin extends JavaPlugin implements Listener {
             catchPearl(p, hit, wc);
             it.remove();
         }
-        if (tracked.isEmpty() && task != null) {
+        if (tracked.isEmpty() && pearls.isEmpty() && task != null) {
             task.cancel();
             task = null;
         }
@@ -109,7 +128,8 @@ public final class PearlCatchPlugin extends JavaPlugin implements Listener {
     private EnderPearl findPearl(WindCharge wc, Location now, Location mid) {
         EnderPearl best = null;
         double bestD = radius * radius;
-        for (EnderPearl pearl : wc.getWorld().getNearbyEntitiesByType(EnderPearl.class, now, radius + 1)) {
+        for (UUID id : pearls) {
+            if (!(getServer().getEntity(id) instanceof EnderPearl pearl) || pearl.getWorld() != wc.getWorld()) continue;
             if (!pearl.isValid()) continue;
             if (ownOnly && !(wc.getShooter() instanceof Player owner && pearl.getShooter() instanceof Player po
                     && owner.getUniqueId().equals(po.getUniqueId()))) continue;
