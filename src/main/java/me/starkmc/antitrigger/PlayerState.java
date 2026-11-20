@@ -56,6 +56,9 @@ final class PlayerState
     long lastScreenMillis;
     final java.util.Map<String, ArrayDeque<Long>> flagTimes = new java.util.HashMap<>();
     long lastCorroborateMillis;
+    int lastMultiTick = -100000;
+    int lastReachTick = -100000;
+    int lastCpsTick = -100000;
     int aiHits;
     long lastAiHitMillis;
     long lastReviewMillis;

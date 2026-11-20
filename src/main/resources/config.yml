@@ -93,6 +93,28 @@ aimassist:
 # Evidence: the last few seconds of every player are kept in memory (per tick: rotation, rotation speed, target,
 # distance, angle error between the crosshair and the target; per attack: distance, angle error, mouse-still ms, CPS ...).
 # When a flag alerts staff, it is saved as plugins/AntiTrigger/evidence/<player>_<time>_<type>.json.
+fast:
+  multiaura:
+    enabled: true
+    targets: 3               # different players hit inside the window below = flag (a switching killaura)
+    ticks: 10                # 10 ticks = half a second
+    cooldown-seconds: 8
+    vl: 1.5
+    commands: []             # empty = VL ladder and corroboration; fill to ban at once (needs punish.enabled)
+  reach:
+    enabled: true
+    limit: 3.5               # vanilla reach is 3.0; the extra covers lag
+    window-ticks: 80
+    hits: 3                  # attacks beyond the limit inside the window
+    cooldown-seconds: 8
+    vl: 1.5
+    commands: []
+  highcps:
+    enabled: true
+    limit: 26                # clicks in the last second; normal clicking tops out well below this
+    cooldown-seconds: 10
+    vl: 1.0
+    commands: []
 corroboration:
   enabled: true
   window-seconds: 180        # two different detectors (or an AI suspicion) on the same player inside this window = ban at once

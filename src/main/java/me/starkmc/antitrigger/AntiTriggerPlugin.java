@@ -115,6 +115,24 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private long reviewCooldownMs;
     private boolean reviewPunishOnFailure;
     private boolean reviewPrimary;
+    private boolean multiEnabled = true;
+    private int multiTargets = 3;
+    private int multiTicks = 10;
+    private int multiCooldownTicks = 160;
+    private double multiVl = 1.5;
+    private List<String> multiCommands = new ArrayList<>();
+    private boolean reachEnabled = true;
+    private double reachLimit = 3.5;
+    private int reachTicks = 80;
+    private int reachHits = 3;
+    private int reachCooldownTicks = 160;
+    private double reachVl = 1.5;
+    private List<String> reachCommands = new ArrayList<>();
+    private boolean cpsEnabled = true;
+    private int cpsLimit = 26;
+    private int cpsCooldownTicks = 200;
+    private double cpsVl = 1.0;
+    private List<String> cpsCommands = new ArrayList<>();
     private boolean corrEnabled = true;
     private long corrWindowMs = 180000L;
     private int corrTypes = 2;
@@ -331,6 +349,24 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.reviewCooldownMs = Math.max(0, c.getInt("review.cooldown-seconds", 20)) * 1000L;
         this.reviewPunishOnFailure = "punish".equalsIgnoreCase(c.getString("review.on-failure", "alert"));
         this.reviewPrimary = "primary".equalsIgnoreCase(c.getString("review.mode", "confirm"));
+        this.multiEnabled = c.getBoolean("fast.multiaura.enabled", true);
+        this.multiTargets = Math.max(2, c.getInt("fast.multiaura.targets", 3));
+        this.multiTicks = Math.max(2, c.getInt("fast.multiaura.ticks", 10));
+        this.multiCooldownTicks = Math.max(1, c.getInt("fast.multiaura.cooldown-seconds", 8)) * 20;
+        this.multiVl = c.getDouble("fast.multiaura.vl", 1.5);
+        this.multiCommands = new ArrayList<>(c.getStringList("fast.multiaura.commands"));
+        this.reachEnabled = c.getBoolean("fast.reach.enabled", true);
+        this.reachLimit = c.getDouble("fast.reach.limit", 3.5);
+        this.reachTicks = Math.max(10, c.getInt("fast.reach.window-ticks", 80));
+        this.reachHits = Math.max(2, c.getInt("fast.reach.hits", 3));
+        this.reachCooldownTicks = Math.max(1, c.getInt("fast.reach.cooldown-seconds", 8)) * 20;
+        this.reachVl = c.getDouble("fast.reach.vl", 1.5);
+        this.reachCommands = new ArrayList<>(c.getStringList("fast.reach.commands"));
+        this.cpsEnabled = c.getBoolean("fast.highcps.enabled", true);
+        this.cpsLimit = Math.max(10, c.getInt("fast.highcps.limit", 26));
+        this.cpsCooldownTicks = Math.max(1, c.getInt("fast.highcps.cooldown-seconds", 10)) * 20;
+        this.cpsVl = c.getDouble("fast.highcps.vl", 1.0);
+        this.cpsCommands = new ArrayList<>(c.getStringList("fast.highcps.commands"));
         this.corrEnabled = c.getBoolean("corroboration.enabled", true);
         this.corrWindowMs = Math.max(30, c.getInt("corroboration.window-seconds", 180)) * 1000L;
         this.corrTypes = Math.max(2, c.getInt("corroboration.distinct-types", 2));
@@ -492,6 +528,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
+        this.fastChecks(attacker, state, now);
+
         boolean onTarget = victim.getUniqueId().equals(state.target) && state.onTargetTicks >= 1;
 
         if (this.offEnabled)
@@ -593,6 +631,107 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         {
             this.runPunishActions(player, state, vlText);
         }
+    }
+
+    /** Cheap, strong checks on the attack list: several players hit in a blink, hits beyond vanilla reach, inhuman click speed. */
+    private void fastChecks(Player player, PlayerState state, int now)
+    {
+        if (player.getGameMode() == org.bukkit.GameMode.CREATIVE || player.getGameMode() == org.bukkit.GameMode.SPECTATOR)
+        {
+            return;
+        }
+
+        if (this.pingSwing(state) > this.maxPingSwing)
+        {
+            return;
+        }
+
+        Evidence.AttackRec[] log = state.attackLog.toArray(new Evidence.AttackRec[0]);
+
+        if (this.multiEnabled && now - state.lastMultiTick >= this.multiCooldownTicks)
+        {
+            java.util.Set<String> victims = new java.util.HashSet<>();
+
+            for (Evidence.AttackRec a : log)
+            {
+                if (now - a.tick() <= this.multiTicks)
+                {
+                    victims.add(a.victim());
+                }
+            }
+
+            if (victims.size() >= this.multiTargets)
+            {
+                state.lastMultiTick = now;
+                this.flagFast(player, state, "multiaura", victims.size() + " different players hit within " + this.multiTicks + " ticks", this.multiVl, this.multiCommands);
+            }
+        }
+
+        if (this.reachEnabled && now - state.lastReachTick >= this.reachCooldownTicks)
+        {
+            int over = 0;
+            double max = 0.0;
+
+            for (Evidence.AttackRec a : log)
+            {
+                if (now - a.tick() <= this.reachTicks && a.dist() > this.reachLimit)
+                {
+                    over++;
+                    max = Math.max(max, a.dist());
+                }
+            }
+
+            if (over >= this.reachHits)
+            {
+                state.lastReachTick = now;
+                this.flagFast(player, state, "reach", over + " attacks beyond " + this.reachLimit + " blocks, max " + String.format(Locale.ROOT, "%.2f", max), this.reachVl, this.reachCommands);
+            }
+        }
+
+        if (this.cpsEnabled && now - state.lastCpsTick >= this.cpsCooldownTicks)
+        {
+            int cps = state.cps(now);
+
+            if (cps >= this.cpsLimit)
+            {
+                state.lastCpsTick = now;
+                this.flagFast(player, state, "highcps", cps + " clicks in one second", this.cpsVl, this.cpsCommands);
+            }
+        }
+    }
+
+    private void flagFast(Player player, PlayerState state, String type, String detail, double vlAdd, List<String> commands)
+    {
+        state.refreshVl(this.decayPerMinute, this.resetAfterMillis);
+        state.vl += vlAdd;
+        state.totalFlags++;
+        state.lastFlagMillis = System.currentTimeMillis();
+        this.history.flag(player.getUniqueId(), player.getName(), type);
+        String vlText = String.format(Locale.ROOT, "%.1f", state.vl);
+        this.writeLog(player.getName() + " vl=" + vlText + " " + type + " " + detail + " ping=" + player.getPing());
+        this.alertStaff("&f" + player.getName() + " &7" + type + " &8| &7" + detail + " &8| &7VL &f" + vlText + " &8| &7ping &f" + player.getPing() + "ms");
+        this.afterFlag(player, state, type, detail);
+
+        if (!this.punishEnabled)
+        {
+            return;
+        }
+
+        if (!commands.isEmpty())
+        {
+            this.history.ban(player.getUniqueId(), player.getName());
+
+            for (String command : commands)
+            {
+                String ready = command.replace("%player%", player.getName()).replace("%vl%", vlText).replace("%type%", type);
+                this.writeLog(player.getName() + " running " + type + " action: " + ready);
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), ready);
+            }
+
+            return;
+        }
+
+        this.runPunishActions(player, state, vlText);
     }
 
     /** Returns why a player's hits are not judged, or null when they are. */
