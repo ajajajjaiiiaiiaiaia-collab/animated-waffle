@@ -107,6 +107,11 @@ public class PortalListener implements Listener {
         if (dest == null) return;
 
         UUID id = p.getUniqueId();
+        if (plugin.getDelayTicks() <= 0) {
+            lastTeleport.put(id, now);
+            p.teleport(dest);
+            return;
+        }
         if (!plugin.getPendingTp().add(id)) return;
         final String portalName = matched.getName();
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {

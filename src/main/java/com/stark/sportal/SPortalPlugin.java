@@ -24,7 +24,7 @@ public class SPortalPlugin extends JavaPlugin {
         }
 
         saveDefaultConfig();
-        delayTicks = Math.max(0, getConfig().getLong("teleport-delay-ticks", 10));
+        delayTicks = Math.max(0, getConfig().getLong("teleport-delay-ticks", 0));
         highlighter = new Highlighter(this);
         portalManager = new PortalManager(this);
         portalManager.load();
