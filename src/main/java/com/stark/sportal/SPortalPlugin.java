@@ -27,7 +27,13 @@ public class SPortalPlugin extends JavaPlugin {
         getCommand("s").setExecutor(sCommand);
         getCommand("s").setTabCompleter(sCommand);
 
-        getServer().getPluginManager().registerEvents(new PortalListener(this, portalManager), this);
+        PortalListener listener = new PortalListener(this, portalManager);
+        getServer().getPluginManager().registerEvents(listener, this);
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            for (org.bukkit.entity.Player pl : getServer().getOnlinePlayers()) {
+                listener.check(pl, pl.getLocation());
+            }
+        }, 10L, 2L);
 
         getLogger().info("SPortal enabled.");
     }

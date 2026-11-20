@@ -72,49 +72,33 @@ public class PortalListener implements Listener {
 
     // ---------- Activation: movement covers walk / touch / jump / collision in one check ----------
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onMove(PlayerMoveEvent e) {
         if (e.getTo() == null) return;
+        check(e.getPlayer(), e.getTo());
+    }
 
-        // Only re-check when the player actually changes block position (cheap early exit, avoids
-        // running portal lookups on every micro-movement / head turn -> prevents lag).
-        if (e.getFrom().getBlockX() == e.getTo().getBlockX()
-                && e.getFrom().getBlockY() == e.getTo().getBlockY()
-                && e.getFrom().getBlockZ() == e.getTo().getBlockZ()) {
-            return;
-        }
-
-        Player p = e.getPlayer();
-
-        // don't interfere while the player is actively selecting
+    public void check(Player p, Location to) {
         if (manager.hasSession(p)) return;
+        if (to.getWorld() == null) return;
 
         Long last = lastTeleport.get(p.getUniqueId());
         long now = System.currentTimeMillis();
         if (last != null && now - last < COOLDOWN_MS) return;
 
-        Location to = e.getTo();
         String world = to.getWorld().getName();
-
-        // Check the block the player's feet are in, and the block their feet are standing on,
-        // and the block at head height, so that touch/jump/collision are all caught by one pass.
         int x = to.getBlockX();
         int yFeet = to.getBlockY();
-        int yBelow = to.getBlockY() - 1;
-        int yHead = to.getBlockY() + 1;
         int z = to.getBlockZ();
 
-        Portal matched = findMatch(world, x, yFeet, yBelow, yHead, z);
+        Portal matched = findMatch(world, x, yFeet, yFeet - 1, yFeet + 1, z);
         if (matched == null) return;
-
-        if (!matched.isDestSet()) return; // not fully configured yet; do nothing
+        if (!matched.isDestSet()) return;
 
         Location dest = matched.getDestination();
         if (dest == null) return;
 
         lastTeleport.put(p.getUniqueId(), now);
-
-        // Instant, same-tick, silent teleport. No messages, no titles, no sounds.
         p.teleport(dest);
     }
 
