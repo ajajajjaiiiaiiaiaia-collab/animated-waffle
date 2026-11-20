@@ -54,6 +54,8 @@ final class PlayerState
     double elytraAngle;
     long lastScreenCheck;
     long lastScreenMillis;
+    final java.util.Map<String, ArrayDeque<Long>> flagTimes = new java.util.HashMap<>();
+    long lastCorroborateMillis;
     int aiHits;
     long lastAiHitMillis;
     long lastReviewMillis;

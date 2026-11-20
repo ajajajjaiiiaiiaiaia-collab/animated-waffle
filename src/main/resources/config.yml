@@ -71,7 +71,7 @@ elytratarget:
   swap-cycles: 3          # slot swap -> rocket -> swap back cycles needed
   require-lock: true
   vl: 2.0
-  cooldown-seconds: 10
+  cooldown-seconds: 6
   commands:             # run at once on a flag, instead of the punish ladder and the AI (needs punish.enabled)
     - "tempban %player% 1d ElytraTarget"
 
@@ -86,13 +86,22 @@ aimassist:
   min-ratio-mean: 0.04    # the pull must be at least this share of the error per tick
   max-ratio-mean: 0.7
   vl: 1.5
-  cooldown-seconds: 15
+  cooldown-seconds: 8
   commands:             # run at once on a flag, instead of the punish ladder and the AI (needs punish.enabled)
     - "tempban %player% 1d AimAssist"
 
 # Evidence: the last few seconds of every player are kept in memory (per tick: rotation, rotation speed, target,
 # distance, angle error between the crosshair and the target; per attack: distance, angle error, mouse-still ms, CPS ...).
 # When a flag alerts staff, it is saved as plugins/AntiTrigger/evidence/<player>_<time>_<type>.json.
+corroboration:
+  enabled: true
+  window-seconds: 180        # two different detectors (or an AI suspicion) on the same player inside this window = ban at once
+  distinct-types: 2
+  repeat-flags: 4            # or the same detector firing this many times ...
+  repeat-window-seconds: 600 # ... inside this window
+  cooldown-seconds: 60
+  commands:                  # needs punish.enabled
+    - "tempban %player% 1d Cheating"
 evidence:
   enabled: true
   seconds: 6              # 2 to 10: how long the per-tick frames are kept
@@ -120,14 +129,14 @@ review:
   cooldown-seconds: 20    # minimum time between two reviews of the same player
   on-failure: alert       # alert = no punishment if the AI cannot be reached, punish = run the action anyway
   primary:
-    cooldown-seconds: 30        # minimum time between two screenings of the same player
+    cooldown-seconds: 15        # minimum time between two screenings of the same player
     confirmations: 1            # the AI must say "cheating" this many times (within confirm-window-seconds) before the ban
     confirm-window-seconds: 180
     commands:
       - "tempban %player% 1d %type%"
     # A fight is only sent to the AI if ONE of these loose gates trips (so normal fights cost nothing):
     gate:
-      off-crosshair-ratio: 0.4  # share of attacks away from the crosshair
+      off-crosshair-ratio: 0.35 # share of attacks away from the crosshair
       snap-attacks: 2           # attacks right after a fast rotation that ended exactly on the target
       cps: 18                   # clicks per second
       reach: 3.6                # blocks

@@ -115,6 +115,13 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private long reviewCooldownMs;
     private boolean reviewPunishOnFailure;
     private boolean reviewPrimary;
+    private boolean corrEnabled = true;
+    private long corrWindowMs = 180000L;
+    private int corrTypes = 2;
+    private int corrRepeat = 4;
+    private long corrRepeatWindowMs = 600000L;
+    private long corrCooldownMs = 60000L;
+    private List<String> corrCommands = new ArrayList<>();
     private long primaryCooldownMs;
     private int primaryConfirmations;
     private long primaryWindowMs;
@@ -324,12 +331,19 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.reviewCooldownMs = Math.max(0, c.getInt("review.cooldown-seconds", 20)) * 1000L;
         this.reviewPunishOnFailure = "punish".equalsIgnoreCase(c.getString("review.on-failure", "alert"));
         this.reviewPrimary = "primary".equalsIgnoreCase(c.getString("review.mode", "confirm"));
-        this.primaryCooldownMs = Math.max(5, c.getInt("review.primary.cooldown-seconds", 30)) * 1000L;
+        this.corrEnabled = c.getBoolean("corroboration.enabled", true);
+        this.corrWindowMs = Math.max(30, c.getInt("corroboration.window-seconds", 180)) * 1000L;
+        this.corrTypes = Math.max(2, c.getInt("corroboration.distinct-types", 2));
+        this.corrRepeat = Math.max(2, c.getInt("corroboration.repeat-flags", 4));
+        this.corrRepeatWindowMs = Math.max(60, c.getInt("corroboration.repeat-window-seconds", 600)) * 1000L;
+        this.corrCooldownMs = Math.max(10, c.getInt("corroboration.cooldown-seconds", 60)) * 1000L;
+        this.corrCommands = new ArrayList<>(c.getStringList("corroboration.commands"));
+        this.primaryCooldownMs = Math.max(5, c.getInt("review.primary.cooldown-seconds", 15)) * 1000L;
         this.primaryConfirmations = Math.max(1, c.getInt("review.primary.confirmations", 1));
         this.primaryWindowMs = Math.max(10, c.getInt("review.primary.confirm-window-seconds", 180)) * 1000L;
         this.primaryCommands.clear();
         this.primaryCommands.addAll(c.getStringList("review.primary.commands"));
-        this.gateOff = c.getDouble("review.primary.gate.off-crosshair-ratio", 0.4);
+        this.gateOff = c.getDouble("review.primary.gate.off-crosshair-ratio", 0.35);
         this.gateSnaps = Math.max(1, c.getInt("review.primary.gate.snap-attacks", 2));
         this.gateCps = Math.max(5, c.getInt("review.primary.gate.cps", 18));
         this.gateReach = c.getDouble("review.primary.gate.reach", 3.6);
@@ -347,7 +361,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.elytraSwapCycles = Math.max(2, c.getInt("elytratarget.swap-cycles", 3));
         this.elytraVl = c.getDouble("elytratarget.vl", 2.0);
         this.elytraRequireLock = c.getBoolean("elytratarget.require-lock", true);
-        this.elytraCooldownTicks = Math.max(20, c.getInt("elytratarget.cooldown-seconds", 10) * 20);
+        this.elytraCooldownTicks = Math.max(20, c.getInt("elytratarget.cooldown-seconds", 6) * 20);
         this.elytraCommands = new ArrayList<>(c.getStringList("elytratarget.commands"));
         this.aimEnabled = c.getBoolean("aimassist.enabled", true);
         this.aimMinSamples = Math.max(10, c.getInt("aimassist.min-samples", 25));
@@ -356,7 +370,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.aimMinMean = Math.max(0.0, c.getDouble("aimassist.min-ratio-mean", 0.04));
         this.aimMaxMean = Math.max(this.aimMinMean + 0.01, c.getDouble("aimassist.max-ratio-mean", 0.7));
         this.aimVl = c.getDouble("aimassist.vl", 1.5);
-        this.aimCooldownTicks = Math.max(20, c.getInt("aimassist.cooldown-seconds", 15) * 20);
+        this.aimCooldownTicks = Math.max(20, c.getInt("aimassist.cooldown-seconds", 8) * 20);
         this.aimCommands = new ArrayList<>(c.getStringList("aimassist.commands"));
         this.aimAlertFormat = c.getString("messages.aimassist-alert", "&f%player% &7AimAssist &8| &7pull &f%pull% &8(variation &f%cv%&8) &8| &7samples &f%samples% &8| &7VL &f%vl% &8| &7ping &f%ping%ms");
         this.elytraAlertFormat = c.getString("messages.elytra-alert", "&f%player% &7ElytraTarget &8| &7rockets &f%boosts% &8(every &f%mean% &8ticks, &7+-&f%sd%&8) &8| &7swap cycles &f%swaps% &8| &7aim lock &f%lock% &8| &7VL &f%vl% &8| &7ping &f%ping%ms");
@@ -781,6 +795,78 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         if (this.evidenceEnabled && this.evidenceOnAlert && state.vl >= this.alertVl)
         {
             this.saveEvidence(player, state, type, detail);
+        }
+
+        this.corroborate(player.getName(), state, type);
+    }
+
+    /**
+     * Strong signal without waiting for the long ladder: two different detectors agreeing on the same player
+     * inside a few minutes, or one detector firing again and again, runs the corroboration commands.
+     */
+    private void corroborate(String name, PlayerState state, String type)
+    {
+        if (!this.corrEnabled || !this.punishEnabled || this.corrCommands.isEmpty())
+        {
+            return;
+        }
+
+        long ms = System.currentTimeMillis();
+        java.util.ArrayDeque<Long> times = state.flagTimes.computeIfAbsent(type, k -> new java.util.ArrayDeque<>());
+        times.addLast(ms);
+        long keep = Math.max(this.corrWindowMs, this.corrRepeatWindowMs);
+
+        while (!times.isEmpty() && ms - times.peekFirst() > keep)
+        {
+            times.pollFirst();
+        }
+
+        int distinct = 0;
+
+        for (java.util.ArrayDeque<Long> q : state.flagTimes.values())
+        {
+            if (!q.isEmpty() && ms - q.peekLast() <= this.corrWindowMs)
+            {
+                distinct++;
+            }
+        }
+
+        int repeats = 0;
+
+        for (long t : times)
+        {
+            if (ms - t <= this.corrRepeatWindowMs)
+            {
+                repeats++;
+            }
+        }
+
+        String why = null;
+
+        if (distinct >= this.corrTypes)
+        {
+            why = distinct + " different detectors agree";
+        }
+        else if (repeats >= this.corrRepeat)
+        {
+            why = type + " flagged " + repeats + " times";
+        }
+
+        if (why == null || ms - state.lastCorroborateMillis < this.corrCooldownMs)
+        {
+            return;
+        }
+
+        state.lastCorroborateMillis = ms;
+        state.flagTimes.clear();
+        this.alertStaff("&c" + name + " &7corroborated: &f" + why + " &8(" + type + ")");
+        this.history.ban(state.uuid, name);
+
+        for (String command : this.corrCommands)
+        {
+            String ready = command.replace("%player%", name).replace("%vl%", "0").replace("%type%", type);
+            this.writeLog(name + " running corroboration action (" + why + "): " + ready);
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), ready);
         }
     }
 
@@ -1396,7 +1482,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         // this window is judged on one continuous fight at a time, never on a blended total.
         List<Evidence.AttackRec> recent = this.recentAttacksAgainst(state, nowTick, last.victim());
 
-        if (recent.size() < 4 || this.skipReason(player) != null)
+        if (recent.size() < 3 || this.skipReason(player) != null)
         {
             return;
         }
@@ -1409,7 +1495,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         JsonObject st = Evidence.stats(state.frames, recent);
         int n = st.get("attacks_recorded").getAsInt();
 
-        if (n < 4)
+        if (n < 3)
         {
             return;
         }
@@ -1527,7 +1613,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         if (state.aiHits < this.primaryConfirmations)
         {
             this.alertStaff("&eAI suspects (" + state.aiHits + "/" + this.primaryConfirmations + "), checking again soon: " + summary);
-            state.lastScreenMillis = ms - this.primaryCooldownMs + 8000L;
+            this.corroborate(name, state, "ai-suspect");
+            state.lastScreenMillis = ms - this.primaryCooldownMs + 4000L;
             return;
         }
 
