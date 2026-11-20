@@ -24,7 +24,7 @@ public class PortalListener implements Listener {
     // on the same block while standing/jumping in place. Short enough to feel instant, long enough
     // to prevent re-trigger loops if destination lands back near the source.
     private final Map<UUID, Long> lastTeleport = new ConcurrentHashMap<>();
-    private static final long COOLDOWN_MS = 500;
+    private static final long COOLDOWN_MS = 250;
 
     public PortalListener(SPortalPlugin plugin, PortalManager manager) {
         this.plugin = plugin;
@@ -83,10 +83,35 @@ public class PortalListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onMove(PlayerMoveEvent e) {
         if (e.getTo() == null) return;
-        check(e.getPlayer(), e.getTo());
+        check(e.getPlayer(), e.getFrom(), e.getTo());
+    }
+
+    private Portal scan(Location from, Location to) {
+        String world = to.getWorld().getName();
+        double dx = to.getX() - from.getX(), dy = to.getY() - from.getY(), dz = to.getZ() - from.getZ();
+        double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        int steps = (from.getWorld() == to.getWorld()) ? (int) Math.min(40, Math.ceil(len / 0.25)) : 0;
+        for (int i = 0; i <= steps; i++) {
+            double t = steps == 0 ? 1.0 : (double) i / steps;
+            double px = from.getX() + dx * t, py = from.getY() + dy * t, pz = from.getZ() + dz * t;
+            int x0 = (int) Math.floor(px - 0.35), x1 = (int) Math.floor(px + 0.35);
+            int z0 = (int) Math.floor(pz - 0.35), z1 = (int) Math.floor(pz + 0.35);
+            int y0 = (int) Math.floor(py - 0.2), y1 = (int) Math.floor(py + 1.9);
+            for (int x = x0; x <= x1; x++)
+                for (int z = z0; z <= z1; z++)
+                    for (int y = y0; y <= y1; y++) {
+                        Portal pt = checkCell(world, x, y, z);
+                        if (pt != null) return pt;
+                    }
+        }
+        return null;
     }
 
     public void check(Player p, Location to) {
+        check(p, to, to);
+    }
+
+    public void check(Player p, Location from, Location to) {
         if (manager.hasSession(p)) return;
         if (to.getWorld() == null) return;
 
@@ -94,12 +119,7 @@ public class PortalListener implements Listener {
         long now = System.currentTimeMillis();
         if (last != null && now - last < COOLDOWN_MS) return;
 
-        String world = to.getWorld().getName();
-        int x = to.getBlockX();
-        int yFeet = to.getBlockY();
-        int z = to.getBlockZ();
-
-        Portal matched = findMatch(world, x, yFeet, yFeet - 1, yFeet + 1, z);
+        Portal matched = scan(from, to);
         if (matched == null) return;
         if (!matched.isDestSet()) return;
 
@@ -109,6 +129,7 @@ public class PortalListener implements Listener {
         UUID id = p.getUniqueId();
         if (plugin.getDelayTicks() <= 0) {
             lastTeleport.put(id, now);
+            if (p.isInsideVehicle()) p.leaveVehicle();
             p.teleport(dest);
             return;
         }
@@ -118,11 +139,12 @@ public class PortalListener implements Listener {
             plugin.getPendingTp().remove(id);
             if (!p.isOnline()) return;
             Location now2 = p.getLocation();
-            Portal still = findMatch(now2.getWorld().getName(), now2.getBlockX(), now2.getBlockY(), now2.getBlockY() - 1, now2.getBlockY() + 1, now2.getBlockZ());
+            Portal still = scan(now2, now2);
             if (still == null || !still.getName().equals(portalName)) return;
             Location d2 = still.getDestination();
             if (d2 == null) return;
             lastTeleport.put(id, System.currentTimeMillis());
+            if (p.isInsideVehicle()) p.leaveVehicle();
             p.teleport(d2);
         }, plugin.getDelayTicks());
     }
