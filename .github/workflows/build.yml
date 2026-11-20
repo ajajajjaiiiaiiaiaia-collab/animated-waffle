@@ -1,0 +1,31 @@
+name: Build SPortal
+
+on:
+  push:
+    branches: [sportal]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build jar
+        run: mvn -B package
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete sportal-latest --cleanup-tag --yes || true
+          gh release create sportal-latest target/SPortal.jar \
+            --title "SPortal latest build" \
+            --notes "Automatic build from commit ${GITHUB_SHA::7}" \
+            --target "$GITHUB_SHA"
