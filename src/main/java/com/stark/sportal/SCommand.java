@@ -81,8 +81,10 @@ public class SCommand implements CommandExecutor, TabCompleter {
         String name = args[2];
         World world = p.getWorld();
 
+        plugin.getHighlighter().clear(p);
+        plugin.getPendingSelections().remove(p.getUniqueId());
         manager.startSelection(p, name.toLowerCase(Locale.ROOT), world);
-        p.sendMessage("§aSelection started for portal '" + name + "'. Hit blocks (left or right click) to add them one by one. Use /s portal finish when done.");
+        p.sendMessage("§aSelection started for portal '" + name + "'. Hit blocks (left or right click) to add them (they glow); hit again to remove. Use /s portal finish when done.");
         return true;
     }
 
@@ -111,8 +113,11 @@ public class SCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§cPlayers only.");
             return true;
         }
-        if (manager.hasSession(p)) {
+        boolean had = manager.hasSession(p) || plugin.getPendingSelections().containsKey(p.getUniqueId());
+        if (had) {
             manager.cancelSelection(p);
+            plugin.getPendingSelections().remove(p.getUniqueId());
+            plugin.getHighlighter().clear(p);
             sender.sendMessage("§aSelection cancelled.");
         } else {
             sender.sendMessage("§cNo active selection to cancel.");
@@ -148,6 +153,7 @@ public class SCommand implements CommandExecutor, TabCompleter {
         }
 
         manager.createPortal(name, session.getWorld(), session.getBlocks(), type);
+        plugin.getHighlighter().clear(p);
         sender.sendMessage("§aPortal '" + name + "' created with " + session.getBlocks().size() + " block(s), type=" + type.name()
                 + ". Now go stand at the destination and run /s portal setdest " + name);
         return true;

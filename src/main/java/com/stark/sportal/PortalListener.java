@@ -45,9 +45,9 @@ public class PortalListener implements Listener {
 
         e.setCancelled(true); // never actually break the block during selection
 
-        session.addBlock(e.getBlock().getX(), e.getBlock().getY(), e.getBlock().getZ());
+        plugin.getHighlighter().toggle(p, e.getBlock().getWorld(), e.getBlock().getX(), e.getBlock().getY(), e.getBlock().getZ(), session.getBlocks());
         p.sendActionBar(net.kyori.adventure.text.Component.text(
-                "§aSelected block §f#" + session.size() + " §7for portal '" + session.getPortalName() + "'"));
+                "§aSelected blocks: §f" + session.size() + " §7for portal '" + session.getPortalName() + "'"));
     }
 
     // Right-click as an alternate, non-destructive way to mark a block during selection.
@@ -65,12 +65,20 @@ public class PortalListener implements Listener {
 
         e.setCancelled(true);
 
-        session.addBlock(e.getClickedBlock().getX(), e.getClickedBlock().getY(), e.getClickedBlock().getZ());
+        plugin.getHighlighter().toggle(p, e.getClickedBlock().getWorld(), e.getClickedBlock().getX(), e.getClickedBlock().getY(), e.getClickedBlock().getZ(), session.getBlocks());
         p.sendActionBar(net.kyori.adventure.text.Component.text(
-                "§aSelected block §f#" + session.size() + " §7for portal '" + session.getPortalName() + "'"));
+                "§aSelected blocks: §f" + session.size() + " §7for portal '" + session.getPortalName() + "'"));
     }
 
     // ---------- Activation: movement covers walk / touch / jump / collision in one check ----------
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent e) {
+        plugin.getHighlighter().clear(e.getPlayer());
+        plugin.getPendingTp().remove(e.getPlayer().getUniqueId());
+        plugin.getPendingSelections().remove(e.getPlayer().getUniqueId());
+        manager.cancelSelection(e.getPlayer());
+    }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onMove(PlayerMoveEvent e) {
@@ -98,8 +106,20 @@ public class PortalListener implements Listener {
         Location dest = matched.getDestination();
         if (dest == null) return;
 
-        lastTeleport.put(p.getUniqueId(), now);
-        p.teleport(dest);
+        UUID id = p.getUniqueId();
+        if (!plugin.getPendingTp().add(id)) return;
+        final String portalName = matched.getName();
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            plugin.getPendingTp().remove(id);
+            if (!p.isOnline()) return;
+            Location now2 = p.getLocation();
+            Portal still = findMatch(now2.getWorld().getName(), now2.getBlockX(), now2.getBlockY(), now2.getBlockY() - 1, now2.getBlockY() + 1, now2.getBlockZ());
+            if (still == null || !still.getName().equals(portalName)) return;
+            Location d2 = still.getDestination();
+            if (d2 == null) return;
+            lastTeleport.put(id, System.currentTimeMillis());
+            p.teleport(d2);
+        }, plugin.getDelayTicks());
     }
 
     private Portal findMatch(String world, int x, int yFeet, int yBelow, int yHead, int z) {

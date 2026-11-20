@@ -9,6 +9,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SPortalPlugin extends JavaPlugin {
 
     private PortalManager portalManager;
+    private Highlighter highlighter;
+    private long delayTicks = 10;
+    private final java.util.Set<UUID> pendingTp = ConcurrentHashMap.newKeySet();
 
     // holds a finished (but not yet created) selection per player, between
     // "/s portal finish" and "/s portal create <name> <type>"
@@ -20,6 +23,9 @@ public class SPortalPlugin extends JavaPlugin {
             getDataFolder().mkdirs();
         }
 
+        saveDefaultConfig();
+        delayTicks = Math.max(0, getConfig().getLong("teleport-delay-ticks", 10));
+        highlighter = new Highlighter(this);
         portalManager = new PortalManager(this);
         portalManager.load();
 
@@ -40,11 +46,16 @@ public class SPortalPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (highlighter != null) highlighter.clearAll();
         if (portalManager != null) {
             portalManager.save();
         }
         getLogger().info("SPortal disabled.");
     }
+
+    public Highlighter getHighlighter() { return highlighter; }
+    public long getDelayTicks() { return delayTicks; }
+    public java.util.Set<UUID> getPendingTp() { return pendingTp; }
 
     public PortalManager getPortalManager() {
         return portalManager;
