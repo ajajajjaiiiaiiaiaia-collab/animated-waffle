@@ -115,6 +115,17 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private long reviewCooldownMs;
     private boolean reviewPunishOnFailure;
     private boolean reviewPrimary;
+    private boolean preventEnabled = true;
+    private int preventMaxPing = 250;
+    private boolean pReachEnabled = true;
+    private double pReachMax = 4.2;
+    private boolean pMultiEnabled = true;
+    private int pMultiMax = 2;
+    private int pMultiTicks = 6;
+    private boolean pCpsEnabled = true;
+    private int pCpsMax = 24;
+    private boolean pBehindEnabled = true;
+    private double pBehindAngle = 100.0;
     private boolean multiEnabled = true;
     private int multiTargets = 3;
     private int multiTicks = 10;
@@ -349,6 +360,17 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.reviewCooldownMs = Math.max(0, c.getInt("review.cooldown-seconds", 20)) * 1000L;
         this.reviewPunishOnFailure = "punish".equalsIgnoreCase(c.getString("review.on-failure", "alert"));
         this.reviewPrimary = "primary".equalsIgnoreCase(c.getString("review.mode", "confirm"));
+        this.preventEnabled = c.getBoolean("prevent.enabled", true);
+        this.preventMaxPing = Math.max(50, c.getInt("prevent.max-ping", 250));
+        this.pReachEnabled = c.getBoolean("prevent.reach.enabled", true);
+        this.pReachMax = c.getDouble("prevent.reach.max", 4.2);
+        this.pMultiEnabled = c.getBoolean("prevent.multitarget.enabled", true);
+        this.pMultiMax = Math.max(1, c.getInt("prevent.multitarget.max-targets", 2));
+        this.pMultiTicks = Math.max(2, c.getInt("prevent.multitarget.ticks", 6));
+        this.pCpsEnabled = c.getBoolean("prevent.cps.enabled", true);
+        this.pCpsMax = Math.max(10, c.getInt("prevent.cps.max", 24));
+        this.pBehindEnabled = c.getBoolean("prevent.behind.enabled", true);
+        this.pBehindAngle = c.getDouble("prevent.behind.angle", 100.0);
         this.multiEnabled = c.getBoolean("fast.multiaura.enabled", true);
         this.multiTargets = Math.max(2, c.getInt("fast.multiaura.targets", 3));
         this.multiTicks = Math.max(2, c.getInt("fast.multiaura.ticks", 10));
@@ -500,6 +522,109 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         state.airSwings.addLast(now);
         state.trim(now, this.windowTicks, this.windowSize);
+    }
+
+    /**
+     * Impossible hits never land: a hit from beyond any lag-excused reach, a third different victim inside a blink,
+     * a hit above the click-speed ceiling, or a hit on someone behind the attacker is cancelled. The attack is still
+     * recorded so the detectors keep flagging the player.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onHitPrevent(EntityDamageByEntityEvent event)
+    {
+        if (!this.preventEnabled || !(event.getDamager() instanceof Player attacker) || !(event.getEntity() instanceof Player victim)
+            || event.getCause() != EntityDamageEvent.DamageCause.ENTITY_ATTACK)
+        {
+            return;
+        }
+
+        if (attacker.hasPermission(this.bypassPermission) || attacker.getGameMode() == org.bukkit.GameMode.CREATIVE
+            || attacker.getGameMode() == org.bukkit.GameMode.SPECTATOR
+            || (!this.bedrockPrefix.isEmpty() && attacker.getName().startsWith(this.bedrockPrefix))
+            || attacker.getPing() > this.preventMaxPing)
+        {
+            return;
+        }
+
+        PlayerState state = this.state(attacker);
+        int now = Bukkit.getCurrentTick();
+
+        while (!state.hitTicks.isEmpty() && now - state.hitTicks.peekFirst() > 20)
+        {
+            state.hitTicks.pollFirst();
+            state.hitVictims.pollFirst();
+        }
+
+        Location eye = attacker.getEyeLocation();
+        String reason = null;
+        double dist = Evidence.aim(eye, victim)[0];
+
+        if (this.pReachEnabled && dist > this.pReachMax)
+        {
+            reason = "reach " + String.format(Locale.ROOT, "%.2f", dist);
+        }
+
+        if (reason == null && this.pMultiEnabled)
+        {
+            java.util.Set<UUID> others = new java.util.HashSet<>();
+            java.util.Iterator<Integer> ti = state.hitTicks.iterator();
+            java.util.Iterator<UUID> vi = state.hitVictims.iterator();
+
+            while (ti.hasNext() && vi.hasNext())
+            {
+                int t = ti.next();
+                UUID v = vi.next();
+
+                if (now - t <= this.pMultiTicks && !v.equals(victim.getUniqueId()))
+                {
+                    others.add(v);
+                }
+            }
+
+            if (others.size() >= this.pMultiMax)
+            {
+                reason = "third target in " + this.pMultiTicks + " ticks";
+            }
+        }
+
+        if (reason == null && this.pCpsEnabled && state.cps(now) > this.pCpsMax)
+        {
+            reason = "clicks " + state.cps(now) + "/s";
+        }
+
+        if (reason == null && this.pBehindEnabled && dist > Evidence.MIN_RELIABLE_DISTANCE)
+        {
+            double lagAngle = this.lagCompensated(attacker, victim, eye, now)[1];
+
+            if (lagAngle > this.pBehindAngle)
+            {
+                reason = "victim behind, " + Math.round(lagAngle) + " deg off";
+            }
+        }
+
+        state.hitTicks.addLast(now);
+        state.hitVictims.addLast(victim.getUniqueId());
+
+        if (reason == null)
+        {
+            return;
+        }
+
+        event.setCancelled(true);
+        state.lastAttackTick = now;
+        this.recordAttack(attacker, state, victim, now, event.getDamage());
+        this.fastChecks(attacker, state, now);
+        state.blockedCount++;
+        this.debug(attacker, "hit blocked: " + reason);
+        long ms = System.currentTimeMillis();
+
+        if (ms - state.lastBlockAlert >= 10000L)
+        {
+            this.alertStaff("&f" + attacker.getName() + " &7hit blocked &8| &7" + reason + " &8| &7blocked &f" + state.blockedCount + " &8| &7ping &f" + attacker.getPing() + "ms");
+            this.writeLog(attacker.getName() + " hit blocked: " + reason + " total=" + state.blockedCount + " ping=" + attacker.getPing());
+            state.lastBlockAlert = ms;
+            state.blockedCount = 0;
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -719,6 +844,11 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         if (!commands.isEmpty())
         {
+            if (this.forceScreen(player, state, type + ": " + detail))
+            {
+                return;
+            }
+
             this.history.ban(player.getUniqueId(), player.getName());
 
             for (String command : commands)
@@ -936,15 +1066,22 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             this.saveEvidence(player, state, type, detail);
         }
 
-        this.corroborate(player.getName(), state, type);
+        this.corroborate(player, state, type, false);
     }
 
     /**
      * Strong signal without waiting for the long ladder: two different detectors agreeing on the same player
      * inside a few minutes, or one detector firing again and again, runs the corroboration commands.
      */
-    private void corroborate(String name, PlayerState state, String type)
+    private void corroborate(Player player, PlayerState state, String type, boolean aiConfirmed)
     {
+        if (player == null)
+        {
+            return;
+        }
+
+        String name = player.getName();
+
         if (!this.corrEnabled || !this.punishEnabled || this.corrCommands.isEmpty())
         {
             return;
@@ -998,6 +1135,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         state.lastCorroborateMillis = ms;
         state.flagTimes.clear();
+        if (!aiConfirmed && this.forceScreen(player, state, "corroboration: " + why + " (" + type + ")"))
+        {
+            this.alertStaff("&e" + name + " &7corroborated: &f" + why + " &8(" + type + ") &7- AI is checking before any ban");
+            return;
+        }
+
         this.alertStaff("&c" + name + " &7corroborated: &f" + why + " &8(" + type + ")");
         this.history.ban(state.uuid, name);
 
@@ -1702,9 +1845,40 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         });
     }
 
+    /** Sends the evidence to the AI right now (no gate, no cooldown). The ban only happens if the AI confirms. Returns false when no AI is available. */
+    private boolean forceScreen(Player player, PlayerState state, String why)
+    {
+        if (!this.reviewEnabled || this.apiKey().isEmpty())
+        {
+            return false;
+        }
+
+        if (state.reviewPending)
+        {
+            return true;
+        }
+
+        long ms = System.currentTimeMillis();
+        state.reviewPending = true;
+        state.forceBan = true;
+        state.lastScreenMillis = ms;
+        state.lastReviewMillis = ms;
+        String name = player.getName();
+        String evidence = this.buildEvidence(player, state, "ai-screen", why).toString();
+
+        Bukkit.getScheduler().runTaskAsynchronously(this, () ->
+        {
+            AiReviewer.Verdict verdict = this.reviewer.review(this.reviewProvider, this.apiKey(), this.reviewModel, this.reviewTimeout, evidence);
+            Bukkit.getScheduler().runTask(this, () -> this.finishScreen(name, state, verdict));
+        });
+        return true;
+    }
+
     private void finishScreen(String name, PlayerState state, AiReviewer.Verdict verdict)
     {
         state.reviewPending = false;
+        boolean force = state.forceBan;
+        state.forceBan = false;
         String reasons = String.join("; ", verdict.reasons());
         this.writeLog(name + " AI screen: verdict=" + verdict.verdict() + " confidence=" + verdict.confidence() + " type=" + verdict.cheatType() + " error=" + verdict.error() + " reasons=" + reasons);
 
@@ -1749,10 +1923,10 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         state.lastAiHitMillis = ms;
         String summary = "&f" + name + " &8| &7AI &f" + verdict.verdict() + " &8| &7confidence &f" + Math.round(verdict.confidence() * 100.0) + "% &8| &7type &f" + verdict.cheatType() + " &8| &7" + reasons;
 
-        if (state.aiHits < this.primaryConfirmations)
+        if (!force && state.aiHits < this.primaryConfirmations)
         {
             this.alertStaff("&eAI suspects (" + state.aiHits + "/" + this.primaryConfirmations + "), checking again soon: " + summary);
-            this.corroborate(name, state, "ai-suspect");
+            this.corroborate(Bukkit.getPlayerExact(name), state, "ai-suspect", true);
             state.lastScreenMillis = ms - this.primaryCooldownMs + 4000L;
             return;
         }

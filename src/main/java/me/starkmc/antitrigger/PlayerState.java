@@ -56,6 +56,11 @@ final class PlayerState
     long lastScreenMillis;
     final java.util.Map<String, ArrayDeque<Long>> flagTimes = new java.util.HashMap<>();
     long lastCorroborateMillis;
+    boolean forceBan;
+    final ArrayDeque<Integer> hitTicks = new ArrayDeque<>();
+    final ArrayDeque<UUID> hitVictims = new ArrayDeque<>();
+    int blockedCount;
+    long lastBlockAlert;
     int lastMultiTick = -100000;
     int lastReachTick = -100000;
     int lastCpsTick = -100000;

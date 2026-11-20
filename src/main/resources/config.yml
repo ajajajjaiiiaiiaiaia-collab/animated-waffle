@@ -93,6 +93,22 @@ aimassist:
 # Evidence: the last few seconds of every player are kept in memory (per tick: rotation, rotation speed, target,
 # distance, angle error between the crosshair and the target; per attack: distance, angle error, mouse-still ms, CPS ...).
 # When a flag alerts staff, it is saved as plugins/AntiTrigger/evidence/<player>_<time>_<type>.json.
+prevent:
+  enabled: true             # impossible hits are cancelled (the target takes no damage); detection and VL still count them
+  max-ping: 250             # players above this are not touched
+  reach:
+    enabled: true
+    max: 4.2                # hits from further than this never land (vanilla 3.0 + lag margin)
+  multitarget:
+    enabled: true
+    max-targets: 2          # a hit on a third different player inside the window below is cancelled
+    ticks: 6
+  cps:
+    enabled: true
+    max: 24                 # hits while clicking faster than this are cancelled
+  behind:
+    enabled: true
+    angle: 100.0            # hits on a player this many degrees away from the crosshair (behind the attacker) are cancelled
 fast:
   multiaura:
     enabled: true
