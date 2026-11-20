@@ -31,6 +31,14 @@ public class SelectionSession {
         blocks.add(Portal.pack(x, y, z));
     }
 
+    private boolean boxMode = false;
+    private int[] corner = null;
+
+    public boolean isBoxMode() { return boxMode; }
+    public void setBoxMode(boolean b) { this.boxMode = b; }
+    public int[] getCorner() { return corner; }
+    public void setCorner(int[] c) { this.corner = c; }
+
     public int size() {
         return blocks.size();
     }

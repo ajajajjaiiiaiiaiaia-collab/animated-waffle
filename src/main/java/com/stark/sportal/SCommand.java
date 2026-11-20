@@ -19,7 +19,7 @@ public class SCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> ROOTS = List.of("portal");
     private static final List<String> SUBS = List.of(
-            "startselect", "finish", "cancel", "create", "settype", "setdest", "remove", "list", "info"
+            "startselect", "box", "finish", "cancel", "create", "settype", "setdest", "remove", "list", "info"
     );
     private static final List<String> TYPES = List.of("collision", "touch", "jump", "all");
 
@@ -31,12 +31,12 @@ public class SCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0 || !args[0].equalsIgnoreCase("portal")) {
-            sender.sendMessage("§cUsage: /s portal <startselect|finish|cancel|create|settype|setdest|remove|list|info>");
+            sender.sendMessage("§cUsage: /s portal <startselect|box|finish|cancel|create|settype|setdest|remove|list|info>");
             return true;
         }
 
         if (args.length < 2) {
-            sender.sendMessage("§cUsage: /s portal <startselect|finish|cancel|create|settype|setdest|remove|list|info>");
+            sender.sendMessage("§cUsage: /s portal <startselect|box|finish|cancel|create|settype|setdest|remove|list|info>");
             return true;
         }
 
@@ -45,6 +45,8 @@ public class SCommand implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "startselect":
                 return cmdStartSelect(sender, args);
+            case "box":
+                return cmdBox(sender);
             case "finish":
                 return cmdFinish(sender, args);
             case "cancel":
@@ -85,6 +87,28 @@ public class SCommand implements CommandExecutor, TabCompleter {
         plugin.getPendingSelections().remove(p.getUniqueId());
         manager.startSelection(p, name.toLowerCase(Locale.ROOT), world);
         p.sendMessage("§aSelection started for portal '" + name + "'. Hit blocks (left or right click) to add them (they glow); hit again to remove. Use /s portal finish when done.");
+        return true;
+    }
+
+    private boolean cmdBox(CommandSender sender) {
+        if (!(sender instanceof Player p)) {
+            sender.sendMessage("§cPlayers only.");
+            return true;
+        }
+        if (!manager.hasSession(p)) {
+            sender.sendMessage("§cStart a selection first: /s portal startselect <name>");
+            return true;
+        }
+        SelectionSession ss = manager.getSession(p);
+        boolean on = !ss.isBoxMode();
+        ss.setBoxMode(on);
+        ss.setCorner(null);
+        plugin.getHighlighter().clearCorner(p);
+        if (on) {
+            sender.sendMessage("§aBox mode ON: right-click two opposite corners to fill everything between them. Left-click (break) toggles a single block. Run /s portal box again to turn off.");
+        } else {
+            sender.sendMessage("§aBox mode OFF: click blocks one by one.");
+        }
         return true;
     }
 

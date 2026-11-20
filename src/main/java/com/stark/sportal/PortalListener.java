@@ -31,43 +31,58 @@ public class PortalListener implements Listener {
         this.manager = manager;
     }
 
-    // ---------- Selection: left-click (break) marks a block during startselect ----------
+    private static final int MAX_BOX = 100000;
+
+    private void single(Player p, SelectionSession session, org.bukkit.block.Block b) {
+        plugin.getHighlighter().toggle(p, b.getWorld(), b.getX(), b.getY(), b.getZ(), session.getBlocks());
+        p.sendActionBar(net.kyori.adventure.text.Component.text(
+                "§aSelected blocks: §f" + session.size() + " §7for portal '" + session.getPortalName() + "'"));
+    }
+
+    private void corner(Player p, SelectionSession session, org.bukkit.block.Block b) {
+        int[] c = session.getCorner();
+        if (c == null) {
+            session.setCorner(new int[]{b.getX(), b.getY(), b.getZ()});
+            plugin.getHighlighter().cornerMark(p, b.getWorld(), b.getX(), b.getY(), b.getZ());
+            p.sendActionBar(net.kyori.adventure.text.Component.text("§eCorner 1 set. Click the opposite corner."));
+            return;
+        }
+        long vol = (long) (Math.abs(b.getX() - c[0]) + 1) * (Math.abs(b.getY() - c[1]) + 1) * (Math.abs(b.getZ() - c[2]) + 1);
+        if (vol > MAX_BOX) {
+            session.setCorner(null);
+            plugin.getHighlighter().clearCorner(p);
+            p.sendMessage("§cBox too big (" + vol + " blocks, max " + MAX_BOX + "). Corner reset.");
+            return;
+        }
+        plugin.getHighlighter().addBox(p, b.getWorld(), c[0], c[1], c[2], b.getX(), b.getY(), b.getZ(), session.getBlocks());
+        session.setCorner(null);
+        plugin.getHighlighter().clearCorner(p);
+        p.sendActionBar(net.kyori.adventure.text.Component.text(
+                "§aBox filled. Total blocks: §f" + session.size() + " §7for portal '" + session.getPortalName() + "'"));
+    }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onSelectionHit(BlockBreakEvent e) {
         Player p = e.getPlayer();
         if (!manager.hasSession(p)) return;
-
         SelectionSession session = manager.getSession(p);
-        if (!session.getWorld().equals(e.getBlock().getWorld().getName())) {
-            return;
-        }
-
-        e.setCancelled(true); // never actually break the block during selection
-
-        plugin.getHighlighter().toggle(p, e.getBlock().getWorld(), e.getBlock().getX(), e.getBlock().getY(), e.getBlock().getZ(), session.getBlocks());
-        p.sendActionBar(net.kyori.adventure.text.Component.text(
-                "§aSelected blocks: §f" + session.size() + " §7for portal '" + session.getPortalName() + "'"));
+        if (!session.getWorld().equals(e.getBlock().getWorld().getName())) return;
+        e.setCancelled(true);
+        single(p, session, e.getBlock());
     }
 
-    // Right-click as an alternate, non-destructive way to mark a block during selection.
     @EventHandler(priority = EventPriority.HIGH)
     public void onSelectionInteract(PlayerInteractEvent e) {
         Player p = e.getPlayer();
         if (!manager.hasSession(p)) return;
         if (e.getClickedBlock() == null) return;
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-
         SelectionSession session = manager.getSession(p);
-        if (!session.getWorld().equals(e.getClickedBlock().getWorld().getName())) {
-            return;
-        }
-
+        if (!session.getWorld().equals(e.getClickedBlock().getWorld().getName())) return;
         e.setCancelled(true);
-
-        plugin.getHighlighter().toggle(p, e.getClickedBlock().getWorld(), e.getClickedBlock().getX(), e.getClickedBlock().getY(), e.getClickedBlock().getZ(), session.getBlocks());
-        p.sendActionBar(net.kyori.adventure.text.Component.text(
-                "§aSelected blocks: §f" + session.size() + " §7for portal '" + session.getPortalName() + "'"));
+        if (e.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
+        if (session.isBoxMode()) corner(p, session, e.getClickedBlock());
+        else single(p, session, e.getClickedBlock());
     }
 
     // ---------- Activation: movement covers walk / touch / jump / collision in one check ----------
