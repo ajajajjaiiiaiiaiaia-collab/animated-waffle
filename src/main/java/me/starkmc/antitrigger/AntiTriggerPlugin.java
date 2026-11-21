@@ -2291,14 +2291,26 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     {
         long now = System.currentTimeMillis();
 
-        if (state.reviewPending || now - state.lastReviewMillis < this.reviewCooldownMs)
+        if (state.reviewPending || now - state.lastLadderMillis < this.reviewCooldownMs)
         {
             state.firedActions.remove(index);
+            String waiting = player.getName();
+            this.writeLog(waiting + " AI review postponed (another review is running or cooldown), retrying in 5s");
+            Bukkit.getScheduler().runTaskLater(this, () ->
+            {
+                Player again = Bukkit.getPlayerExact(waiting);
+
+                if (again != null && again.isOnline() && this.punishEnabled)
+                {
+                    this.runPunishActions(again, state, vlText);
+                }
+            }, 100L);
             return;
         }
 
         state.reviewPending = true;
         state.lastReviewMillis = now;
+        state.lastLadderMillis = now;
         String name = player.getName();
         Evidence.AttackRec lastAttack = state.attackLog.peekLast();
         String victim = lastAttack == null ? null : lastAttack.victim();
