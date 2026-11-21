@@ -109,6 +109,18 @@ prevent:
   behind:
     enabled: true
     angle: 100.0            # hits on a player this many degrees away from the crosshair (behind the attacker) are cancelled
+  noswing:
+    enabled: true           # a real client always swings its arm with a hit
+    min-misses: 2
+    window-ticks: 100
+  wall:
+    enabled: true           # hits on a player behind a solid block
+  inventory:
+    enabled: true           # hits while a chest or the inventory screen is open
+  useitem:
+    enabled: true           # hits while eating, drinking or blocking with a shield
+    min-ticks: 3
+  flag-vl: 1.0              # VL added (about once a few seconds) for the four checks above
 fast:
   multiaura:
     enabled: true

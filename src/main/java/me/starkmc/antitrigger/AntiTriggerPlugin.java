@@ -116,6 +116,14 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private boolean reviewPunishOnFailure;
     private boolean reviewPrimary;
     private boolean preventEnabled = true;
+    private boolean pNoSwingEnabled = true;
+    private int pNoSwingMisses = 2;
+    private int pNoSwingWindow = 100;
+    private boolean pWallEnabled = true;
+    private boolean pInvEnabled = true;
+    private boolean pUseEnabled = true;
+    private int pUseTicks = 3;
+    private double preventFlagVl = 1.0;
     private int preventMaxPing = 250;
     private boolean pReachEnabled = true;
     private double pReachMax = 4.2;
@@ -361,6 +369,14 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.reviewPunishOnFailure = "punish".equalsIgnoreCase(c.getString("review.on-failure", "alert"));
         this.reviewPrimary = "primary".equalsIgnoreCase(c.getString("review.mode", "confirm"));
         this.preventEnabled = c.getBoolean("prevent.enabled", true);
+        this.pNoSwingEnabled = c.getBoolean("prevent.noswing.enabled", true);
+        this.pNoSwingMisses = Math.max(1, c.getInt("prevent.noswing.min-misses", 2));
+        this.pNoSwingWindow = Math.max(20, c.getInt("prevent.noswing.window-ticks", 100));
+        this.pWallEnabled = c.getBoolean("prevent.wall.enabled", true);
+        this.pInvEnabled = c.getBoolean("prevent.inventory.enabled", true);
+        this.pUseEnabled = c.getBoolean("prevent.useitem.enabled", true);
+        this.pUseTicks = Math.max(1, c.getInt("prevent.useitem.min-ticks", 3));
+        this.preventFlagVl = c.getDouble("prevent.flag-vl", 1.0);
         this.preventMaxPing = Math.max(50, c.getInt("prevent.max-ping", 250));
         this.pReachEnabled = c.getBoolean("prevent.reach.enabled", true);
         this.pReachMax = c.getDouble("prevent.reach.max", 4.2);
@@ -514,6 +530,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         PlayerState state = this.state(event.getPlayer());
         int now = Bukkit.getCurrentTick();
         state.click(now);
+        state.lastSwingTick = now;
+
+        if (state.pendingSwing)
+        {
+            state.pendingHadSwing = true;
+        }
 
         if (now - state.lastAttackTick <= 1)
         {
@@ -555,8 +577,22 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             state.hitVictims.pollFirst();
         }
 
+        if (state.pendingSwing && !state.pendingHadSwing)
+        {
+            state.swingMisses.addLast(now);
+        }
+
+        while (!state.swingMisses.isEmpty() && now - state.swingMisses.peekFirst() > this.pNoSwingWindow)
+        {
+            state.swingMisses.pollFirst();
+        }
+
+        state.pendingSwing = true;
+        state.pendingHadSwing = now - state.lastSwingTick <= 1;
+
         Location eye = attacker.getEyeLocation();
         String reason = null;
+        String rule = null;
         double dist = Evidence.aim(eye, victim)[0];
 
         if (this.pReachEnabled && dist > this.pReachMax)
@@ -602,12 +638,58 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
         }
 
+        if (reason == null && this.pNoSwingEnabled && state.swingMisses.size() >= this.pNoSwingMisses)
+        {
+            reason = "no swing animation (" + state.swingMisses.size() + " hits without a swing)";
+            rule = "noswing";
+        }
+
+        if (reason == null && this.pInvEnabled)
+        {
+            boolean container = attacker.getOpenInventory().getTopInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING;
+            boolean own = state.invOpen && now - state.lastInvClickTick <= 100;
+
+            if (container || own)
+            {
+                reason = "attacking with an inventory open";
+                rule = "invhit";
+            }
+        }
+
+        if (reason == null && this.pUseEnabled && attacker.isHandRaised() && attacker.getActiveItemUsedTime() >= this.pUseTicks)
+        {
+            Material held = attacker.getActiveItem().getType();
+
+            if (held.isEdible() || held == Material.POTION || held == Material.MILK_BUCKET || held == Material.HONEY_BOTTLE || held == Material.SHIELD)
+            {
+                reason = "attacking while using " + held.name().toLowerCase(Locale.ROOT);
+                rule = "useitem";
+            }
+        }
+
+        if (reason == null && this.pWallEnabled && this.throughWall(eye, victim))
+        {
+            reason = "hit through a solid block";
+            rule = "wallhit";
+        }
+
         state.hitTicks.addLast(now);
         state.hitVictims.addLast(victim.getUniqueId());
 
         if (reason == null)
         {
             return;
+        }
+
+        if (rule != null)
+        {
+            Integer lastRule = state.lastRuleTick.get(rule);
+
+            if (lastRule == null || now - lastRule >= 60)
+            {
+                state.lastRuleTick.put(rule, now);
+                this.flagFast(attacker, state, rule, reason, this.preventFlagVl, new ArrayList<>());
+            }
         }
 
         event.setCancelled(true);
@@ -624,6 +706,70 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             this.writeLog(attacker.getName() + " hit blocked: " + reason + " total=" + state.blockedCount + " ping=" + attacker.getPing());
             state.lastBlockAlert = ms;
             state.blockedCount = 0;
+        }
+    }
+
+    /** True when every line from the eye to the victim (nearest point, centre, head) is blocked by a solid block. */
+    private boolean throughWall(Location eye, Player victim)
+    {
+        org.bukkit.World world = eye.getWorld();
+
+        if (world == null || victim.getWorld() != world || eye.getBlock().getType().isSolid())
+        {
+            return false;
+        }
+
+        org.bukkit.util.BoundingBox bb = victim.getBoundingBox();
+        org.bukkit.util.Vector origin = eye.toVector();
+
+        if (bb.contains(origin))
+        {
+            return false;
+        }
+
+        org.bukkit.util.Vector center = bb.getCenter();
+        org.bukkit.util.Vector[] points = {
+            new org.bukkit.util.Vector(Math.max(bb.getMinX(), Math.min(bb.getMaxX(), origin.getX())), Math.max(bb.getMinY(), Math.min(bb.getMaxY(), origin.getY())), Math.max(bb.getMinZ(), Math.min(bb.getMaxZ(), origin.getZ()))),
+            center,
+            new org.bukkit.util.Vector(center.getX(), bb.getMaxY() - 0.2, center.getZ())
+        };
+
+        for (org.bukkit.util.Vector point : points)
+        {
+            org.bukkit.util.Vector dir = point.clone().subtract(origin);
+            double len = dir.length();
+
+            if (len < 0.6)
+            {
+                return false;
+            }
+
+            if (world.rayTraceBlocks(eye, dir.normalize(), len - 0.05, org.bukkit.FluidCollisionMode.NEVER, true) == null)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInvClick(org.bukkit.event.inventory.InventoryClickEvent event)
+    {
+        if (event.getWhoClicked() instanceof Player p)
+        {
+            PlayerState state = this.state(p);
+            state.invOpen = true;
+            state.lastInvClickTick = Bukkit.getCurrentTick();
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInvClose(org.bukkit.event.inventory.InventoryCloseEvent event)
+    {
+        if (event.getPlayer() instanceof Player p)
+        {
+            this.state(p).invOpen = false;
         }
     }
 

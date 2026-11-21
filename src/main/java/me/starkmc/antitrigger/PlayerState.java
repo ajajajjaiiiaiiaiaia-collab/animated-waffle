@@ -57,6 +57,13 @@ final class PlayerState
     final java.util.Map<String, ArrayDeque<Long>> flagTimes = new java.util.HashMap<>();
     long lastCorroborateMillis;
     boolean forceBan;
+    int lastSwingTick = -100000;
+    boolean pendingSwing;
+    boolean pendingHadSwing;
+    final ArrayDeque<Integer> swingMisses = new ArrayDeque<>();
+    boolean invOpen;
+    int lastInvClickTick = -100000;
+    final java.util.Map<String, Integer> lastRuleTick = new java.util.HashMap<>();
     final ArrayDeque<Integer> hitTicks = new ArrayDeque<>();
     final ArrayDeque<UUID> hitVictims = new ArrayDeque<>();
     int blockedCount;
