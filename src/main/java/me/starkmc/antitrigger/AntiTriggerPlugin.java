@@ -699,6 +699,16 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.recordAttack(attacker, state, victim, now, event.getDamage());
         this.fastChecks(attacker, state, now);
         state.blockedCount++;
+        long logMs = System.currentTimeMillis();
+        state.blockedLog.addLast(reason + " vs " + victim.getName() + " ping " + attacker.getPing());
+        state.blockedLogMs.addLast(logMs);
+
+        while (state.blockedLog.size() > 40 || (!state.blockedLogMs.isEmpty() && logMs - state.blockedLogMs.peekFirst() > 120000L))
+        {
+            state.blockedLog.pollFirst();
+            state.blockedLogMs.pollFirst();
+        }
+
         this.debug(attacker, "hit blocked: " + reason);
         long ms = System.currentTimeMillis();
 
@@ -2179,6 +2189,23 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         root.addProperty("time", LocalDateTime.now().withNano(0).toString());
         root.addProperty("flag_type", type);
         root.addProperty("flag_detail", detail);
+        JsonArray prevented = new JsonArray();
+        long evNow = System.currentTimeMillis();
+        java.util.Iterator<String> pi = state.blockedLog.iterator();
+        java.util.Iterator<Long> pt = state.blockedLogMs.iterator();
+
+        while (pi.hasNext() && pt.hasNext())
+        {
+            String entry = pi.next();
+            long at = pt.next();
+
+            if (evNow - at <= 120000L)
+            {
+                prevented.add(Math.round((evNow - at) / 1000.0) + "s ago: " + entry);
+            }
+        }
+
+        root.add("hits_cancelled_by_server_rules_last_2_min", prevented);
         root.addProperty("held_item", player.getInventory().getItemInMainHand().getType().name());
         root.addProperty("interaction_range_attribute", player.getAttribute(org.bukkit.attribute.Attribute.ENTITY_INTERACTION_RANGE) == null ? 3.0 : player.getAttribute(org.bukkit.attribute.Attribute.ENTITY_INTERACTION_RANGE).getValue());
         root.addProperty("vl", Evidence.r(state.vl, 2));
