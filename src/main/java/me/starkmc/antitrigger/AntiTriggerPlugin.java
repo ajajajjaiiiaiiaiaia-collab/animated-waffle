@@ -127,6 +127,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int preventMaxPing = 250;
     private boolean pReachEnabled = true;
     private double pReachMax = 4.2;
+    private double reachPingMargin = 0.3;
     private boolean pMultiEnabled = true;
     private int pMultiMax = 2;
     private int pMultiTicks = 6;
@@ -381,6 +382,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.preventMaxPing = Math.max(50, c.getInt("prevent.max-ping", 250));
         this.pReachEnabled = c.getBoolean("prevent.reach.enabled", true);
         this.pReachMax = c.getDouble("prevent.reach.max", 4.2);
+        this.reachPingMargin = Math.max(0.0, c.getDouble("prevent.reach.ping-margin", 0.3));
         this.pMultiEnabled = c.getBoolean("prevent.multitarget.enabled", true);
         this.pMultiMax = Math.max(1, c.getInt("prevent.multitarget.max-targets", 2));
         this.pMultiTicks = Math.max(2, c.getInt("prevent.multitarget.ticks", 6));
@@ -597,7 +599,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         String rule = null;
         double dist = Evidence.aim(eye, victim)[0];
 
-        if (this.pReachEnabled && dist > this.pReachMax + this.reachExtra(attacker))
+        if (this.pReachEnabled && dist > this.pReachMax + this.reachExtra(attacker) + this.reachPingMargin * attacker.getPing() / 100.0)
         {
             reason = "reach " + String.format(Locale.ROOT, "%.2f", dist);
         }
@@ -969,7 +971,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         if (this.reachEnabled && now - state.lastReachTick >= this.reachCooldownTicks)
         {
-            double extra = this.reachExtra(player);
+            double extra = this.reachExtra(player) + this.reachPingMargin * player.getPing() / 100.0;
             int over = 0;
             double max = 0.0;
 

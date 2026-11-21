@@ -99,6 +99,7 @@ prevent:
   reach:
     enabled: true
     max: 4.2                # hits from further than this never land (vanilla 3.0 + lag margin)
+    ping-margin: 0.3        # extra blocks allowed per 100 ms of the attacker's ping
   multitarget:
     enabled: true
     max-targets: 2          # a hit on a third different player inside the window below is cancelled
