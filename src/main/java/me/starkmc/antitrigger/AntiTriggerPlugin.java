@@ -595,7 +595,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         String rule = null;
         double dist = Evidence.aim(eye, victim)[0];
 
-        if (this.pReachEnabled && dist > this.pReachMax)
+        if (this.pReachEnabled && dist > this.pReachMax + this.reachExtra(attacker))
         {
             reason = "reach " + String.format(Locale.ROOT, "%.2f", dist);
         }
@@ -707,6 +707,23 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             state.lastBlockAlert = ms;
             state.blockedCount = 0;
         }
+    }
+
+    /**
+     * Extra reach a player legitimately has right now: a spear (1.21.11+ attack_range component) or a raised
+     * entity-interaction-range attribute. Returns the extra blocks to add, or 100 when the held item is a spear.
+     */
+    private double reachExtra(Player player)
+    {
+        String held = player.getInventory().getItemInMainHand().getType().name();
+
+        if (held.endsWith("_SPEAR") || held.equals("SPEAR"))
+        {
+            return 100.0;
+        }
+
+        org.bukkit.attribute.AttributeInstance range = player.getAttribute(org.bukkit.attribute.Attribute.ENTITY_INTERACTION_RANGE);
+        return range == null ? 0.0 : Math.max(0.0, range.getValue() - 3.0);
     }
 
     /** True when every line from the eye to the victim (nearest point, centre, head) is blocked by a solid block. */
@@ -940,12 +957,13 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         if (this.reachEnabled && now - state.lastReachTick >= this.reachCooldownTicks)
         {
+            double extra = this.reachExtra(player);
             int over = 0;
             double max = 0.0;
 
             for (Evidence.AttackRec a : log)
             {
-                if (now - a.tick() <= this.reachTicks && a.dist() > this.reachLimit)
+                if (now - a.tick() <= this.reachTicks && a.dist() > this.reachLimit + extra)
                 {
                     over++;
                     max = Math.max(max, a.dist());
@@ -1963,7 +1981,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             why.add("CPS " + st.get("max_cps").getAsInt());
         }
 
-        if (st.get("max_attack_distance").getAsDouble() > this.gateReach)
+        if (st.get("max_attack_distance").getAsDouble() > this.gateReach + Math.min(this.reachExtra(player), 3.0) && this.reachExtra(player) < 50.0)
         {
             why.add("distance " + st.get("max_attack_distance").getAsDouble());
         }
@@ -2146,6 +2164,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         root.addProperty("time", LocalDateTime.now().withNano(0).toString());
         root.addProperty("flag_type", type);
         root.addProperty("flag_detail", detail);
+        root.addProperty("held_item", player.getInventory().getItemInMainHand().getType().name());
+        root.addProperty("interaction_range_attribute", player.getAttribute(org.bukkit.attribute.Attribute.ENTITY_INTERACTION_RANGE) == null ? 3.0 : player.getAttribute(org.bukkit.attribute.Attribute.ENTITY_INTERACTION_RANGE).getValue());
         root.addProperty("vl", Evidence.r(state.vl, 2));
         root.addProperty("total_flags", state.totalFlags);
 
