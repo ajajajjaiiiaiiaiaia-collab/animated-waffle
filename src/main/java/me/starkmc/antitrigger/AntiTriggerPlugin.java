@@ -1359,7 +1359,6 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             if (victim != null && victim.isOnline() && !victim.isDead() && victim.getWorld().equals(player.getWorld()))
             {
                 double[] aim = Evidence.aim(eye, victim);
-        aim[0] = this.lagReach(attacker, victim, eye, now, aim[0]);
                 targetName = victim.getName();
                 dist = aim[0];
                 angle = aim[1];
@@ -1498,6 +1497,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         Location eye = attacker.getEyeLocation();
         double[] aim = Evidence.aim(eye, victim);
+        aim[0] = this.lagReach(attacker, victim, eye, now, aim[0]);
         boolean on = victim.getUniqueId().equals(state.target) && state.onTargetTicks >= 1;
         long still = System.currentTimeMillis() - this.lastRotation.getOrDefault(attacker.getUniqueId(), 0L);
         double hitboxAngle = Evidence.angleToBox(eye, victim.getBoundingBox());
