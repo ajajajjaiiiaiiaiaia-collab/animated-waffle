@@ -750,34 +750,51 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return false;
         }
 
-        org.bukkit.util.BoundingBox bb = victim.getBoundingBox();
         org.bukkit.util.Vector origin = eye.toVector();
+        java.util.List<org.bukkit.util.BoundingBox> boxes = new ArrayList<>();
+        boxes.add(victim.getBoundingBox());
+        PlayerState victimState = this.states.get(victim.getUniqueId());
 
-        if (bb.contains(origin))
+        if (victimState != null)
         {
-            return false;
+            for (PlayerState.BoxSnap snap : victimState.boxes)
+            {
+                boxes.add(snap.box());
+            }
         }
 
-        org.bukkit.util.Vector center = bb.getCenter();
-        org.bukkit.util.Vector[] points = {
-            new org.bukkit.util.Vector(Math.max(bb.getMinX(), Math.min(bb.getMaxX(), origin.getX())), Math.max(bb.getMinY(), Math.min(bb.getMaxY(), origin.getY())), Math.max(bb.getMinZ(), Math.min(bb.getMaxZ(), origin.getZ()))),
-            center,
-            new org.bukkit.util.Vector(center.getX(), bb.getMaxY() - 0.2, center.getZ())
-        };
-
-        for (org.bukkit.util.Vector point : points)
+        for (org.bukkit.util.BoundingBox bb : boxes)
         {
-            org.bukkit.util.Vector dir = point.clone().subtract(origin);
-            double len = dir.length();
-
-            if (len < 0.6)
+            if (bb.clone().expand(0.3).contains(origin))
             {
                 return false;
             }
 
-            if (world.rayTraceBlocks(eye, dir.normalize(), len - 0.05, org.bukkit.FluidCollisionMode.NEVER, true) == null)
+            org.bukkit.util.Vector center = bb.getCenter();
+            double[] ys = {bb.getMinY() + 0.1, center.getY(), bb.getMaxY() - 0.2};
+            double[] xs = {bb.getMinX() + 0.05, center.getX(), bb.getMaxX() - 0.05};
+            double[] zs = {bb.getMinZ() + 0.05, center.getZ(), bb.getMaxZ() - 0.05};
+
+            for (double y : ys)
             {
-                return false;
+                for (double x : xs)
+                {
+                    for (double z : zs)
+                    {
+                        org.bukkit.util.Vector dir = new org.bukkit.util.Vector(x, y, z).subtract(origin);
+                        double len = dir.length();
+
+                        if (len < 0.9)
+                        {
+                            return false;
+                        }
+
+                        if (world.rayTraceBlocks(eye, dir.normalize(), len - 0.1, org.bukkit.FluidCollisionMode.NEVER, true) == null)
+                        {
+                            return false;
+                        }
+                    }
+                }
             }
         }
 
