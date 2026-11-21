@@ -153,6 +153,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private double cpsVl = 1.0;
     private List<String> cpsCommands = new ArrayList<>();
     private boolean corrEnabled = true;
+    private boolean corrBanOnAiFail = true;
     private long corrWindowMs = 180000L;
     private int corrTypes = 2;
     private int corrRepeat = 4;
@@ -406,6 +407,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.cpsVl = c.getDouble("fast.highcps.vl", 1.0);
         this.cpsCommands = new ArrayList<>(c.getStringList("fast.highcps.commands"));
         this.corrEnabled = c.getBoolean("corroboration.enabled", true);
+        this.corrBanOnAiFail = c.getBoolean("corroboration.ban-if-ai-fails", true);
         this.corrWindowMs = Math.max(30, c.getInt("corroboration.window-seconds", 180)) * 1000L;
         this.corrTypes = Math.max(2, c.getInt("corroboration.distinct-types", 2));
         this.corrRepeat = Math.max(2, c.getInt("corroboration.repeat-flags", 4));
@@ -2048,6 +2050,19 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         if (verdict.error() != null)
         {
+            if (force && this.corrBanOnAiFail && this.punishEnabled && !this.corrCommands.isEmpty())
+            {
+                this.alertStaff("&e" + name + " &7AI unavailable (" + verdict.error() + "), corroborated evidence is enough: banning");
+                this.history.ban(state.uuid, name);
+
+                for (String command : this.corrCommands)
+                {
+                    String ready = command.replace("%player%", name).replace("%vl%", "0").replace("%type%", "Cheating");
+                    this.writeLog(name + " running corroboration action (AI unavailable): " + ready);
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), ready);
+                }
+            }
+
             return;
         }
 

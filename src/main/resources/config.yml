@@ -150,6 +150,7 @@ corroboration:
   repeat-flags: 4            # or the same detector firing this many times ...
   repeat-window-seconds: 600 # ... inside this window
   cooldown-seconds: 60
+  ban-if-ai-fails: true      # when the AI cannot be reached (keys exhausted, timeout), two agreeing detectors are enough to ban
   commands:                  # needs punish.enabled
     - "tempban %player% 1d Cheating"
 evidence:
