@@ -597,7 +597,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         Location eye = attacker.getEyeLocation();
         String reason = null;
         String rule = null;
-        double dist = Evidence.aim(eye, victim)[0];
+        double dist = this.lagReach(attacker, victim, eye, now, Evidence.aim(eye, victim)[0]);
 
         if (this.pReachEnabled && dist > this.pReachMax + this.reachExtra(attacker) + this.reachPingMargin * attacker.getPing() / 100.0)
         {
@@ -1359,6 +1359,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             if (victim != null && victim.isOnline() && !victim.isDead() && victim.getWorld().equals(player.getWorld()))
             {
                 double[] aim = Evidence.aim(eye, victim);
+        aim[0] = this.lagReach(attacker, victim, eye, now, aim[0]);
                 targetName = victim.getName();
                 dist = aim[0];
                 angle = aim[1];
@@ -1411,6 +1412,42 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
 
         return new double[] {best <= LAG_ON_ANGLE ? 1.0 : 0.0, best};
+    }
+
+    /**
+     * Distance from the eye to the victim as the attacker's screen showed it: the smallest eye-to-hitbox distance over the
+     * victim's recent positions (about one ping ago, plus a little for interpolation). The current server position alone
+     * overstates reach whenever the victim moves away between the attacker's click and the server tick.
+     */
+    private double lagReach(Player attacker, Player victim, Location eye, int now, double currentDist)
+    {
+        PlayerState victimState = this.states.get(victim.getUniqueId());
+
+        if (victimState == null || victimState.boxes.isEmpty())
+        {
+            return currentDist;
+        }
+
+        double pingTicks = attacker.getPing() / 50.0;
+        int lo = Math.max(0, (int)Math.floor(pingTicks - 0.5));
+        int hi = Math.min(14, (int)Math.ceil(pingTicks + 3.0));
+        double best = currentDist;
+
+        for (PlayerState.BoxSnap snap : victimState.boxes)
+        {
+            int age = now - snap.tick();
+
+            if (age >= lo && age <= hi)
+            {
+                org.bukkit.util.BoundingBox bb = snap.box();
+                double ex = Math.max(bb.getMinX() - eye.getX(), Math.max(0.0, eye.getX() - bb.getMaxX()));
+                double ey = Math.max(bb.getMinY() - eye.getY(), Math.max(0.0, eye.getY() - bb.getMaxY()));
+                double ez = Math.max(bb.getMinZ() - eye.getZ(), Math.max(0.0, eye.getZ() - bb.getMaxZ()));
+                best = Math.min(best, Math.sqrt(ex * ex + ey * ey + ez * ez));
+            }
+        }
+
+        return best;
     }
 
     private int crowd(Player attacker, Player victim)
