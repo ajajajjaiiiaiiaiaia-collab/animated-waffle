@@ -46,6 +46,7 @@ final class PlayerState
     int lockTicks;
     int lockMiss;
     int tightTicks;
+    int elytraBlockUntil = -1;
     int tightMiss;
     double tightRot;
     boolean tightFired;

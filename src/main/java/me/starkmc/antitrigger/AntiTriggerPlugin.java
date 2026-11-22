@@ -144,6 +144,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private boolean pTrigKeys = false;
     private double pTrigJitter = 1.5;
     private boolean pHitEnabled = true;
+    private boolean pElytraEnabled = true;
+    private int pElytraBlockTicks = 200;
     private boolean pHitFlag = false;
     private double pHitMargin = 0.25;
     private double pHitPingMargin = 0.05;
@@ -417,6 +419,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.pTrigJitter = Math.max(0.0, c.getDouble("prevent.trigger.jitter-degrees", 1.5));
         this.pTrigFlag = c.getBoolean("prevent.trigger.flag", false);
         this.pHitEnabled = c.getBoolean("prevent.hitbox.enabled", true);
+        this.pElytraEnabled = c.getBoolean("prevent.elytralock.enabled", true);
+        this.pElytraBlockTicks = Math.max(20, c.getInt("prevent.elytralock.seconds", 10) * 20);
         this.pHitFlag = c.getBoolean("prevent.hitbox.flag", false);
         this.pHitMargin = Math.max(0.1, c.getDouble("prevent.hitbox.margin", 0.25));
         this.pHitPingMargin = Math.max(0.0, c.getDouble("prevent.hitbox.ping-margin", 0.05));
@@ -754,6 +758,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
         }
 
+        if (reason == null && this.pElytraEnabled && now < state.elytraBlockUntil)
+        {
+            reason = "ElytraTarget lock is active";
+            rule = "elytralock";
+        }
+
         if (reason == null && this.pHitEnabled && dist >= 1.0 && this.missesHitbox(attacker, victim, eye, now))
         {
             reason = "crosshair outside the hitbox";
@@ -782,7 +792,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
-        if (rule != null && (!"triggerlock".equals(rule) || this.pTrigFlag) && (!"hitbox".equals(rule) || this.pHitFlag || hitBurst))
+        if (rule != null && !"elytralock".equals(rule) && (!"triggerlock".equals(rule) || this.pTrigFlag) && (!"hitbox".equals(rule) || this.pHitFlag || hitBurst))
         {
             Integer lastRule = state.lastRuleTick.get(rule);
 
@@ -2018,6 +2028,11 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
                 state.tightMiss = 0;
                 state.tightRot += Math.abs(dYaw) + Math.abs(dPitch);
 
+                if (state.tightFired)
+                {
+                    state.elytraBlockUntil = Math.max(state.elytraBlockUntil, Bukkit.getCurrentTick() + 40);
+                }
+
                 if (state.tightTicks >= this.elytraTightTicks && state.tightRot >= this.elytraTightRot && !state.tightFired)
                 {
                     int tickNow = Bukkit.getCurrentTick();
@@ -2190,6 +2205,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
     private void flagElytra(Player player, PlayerState state, int boosts, double mean, double sd, int swaps, boolean lock)
     {
+        state.elytraBlockUntil = Bukkit.getCurrentTick() + this.pElytraBlockTicks;
         state.refreshVl(this.decayPerMinute, this.resetAfterMillis);
         state.vl += this.elytraVl;
         state.totalFlags++;
