@@ -538,6 +538,11 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             RayTraceResult result = player.getWorld().rayTraceEntities(eye, eye.getDirection(), this.range, this.raySize, entity -> entity instanceof Player other && !other.equals(player) && other.getGameMode() != GameMode.SPECTATOR && !other.isDead());
             UUID hit = result != null && result.getHitEntity() != null ? result.getHitEntity().getUniqueId() : null;
 
+            if (hit == null)
+            {
+                hit = this.lagTarget(player, eye, Bukkit.getCurrentTick());
+            }
+
             if (hit != null)
             {
                 state.seenVictim = hit;
@@ -901,6 +906,60 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
 
         return true;
+    }
+
+    private UUID lagTarget(Player player, Location eye, int now)
+    {
+        double pingTicks = player.getPing() / 50.0;
+        int lo = Math.max(0, (int)Math.floor(pingTicks - 1.0));
+        int hi = Math.min(15, (int)Math.ceil(pingTicks + 2.0));
+        org.bukkit.util.Vector origin = eye.toVector();
+        org.bukkit.util.Vector dir = eye.getDirection();
+        double reach = this.range + 1.0;
+        UUID best = null;
+        double bestDist = Double.MAX_VALUE;
+
+        for (Player other : player.getWorld().getNearbyPlayers(eye, reach))
+        {
+            if (other.equals(player) || other.getGameMode() == GameMode.SPECTATOR || other.isDead())
+            {
+                continue;
+            }
+
+            PlayerState otherState = this.states.get(other.getUniqueId());
+
+            if (otherState == null)
+            {
+                continue;
+            }
+
+            for (PlayerState.BoxSnap snap : otherState.boxes)
+            {
+                int age = now - snap.tick();
+
+                if (age < lo || age > hi)
+                {
+                    continue;
+                }
+
+                RayTraceResult r = snap.box().clone().expand(this.raySize).rayTrace(origin, dir, reach);
+
+                if (r != null)
+                {
+                    double d = r.getHitPosition().distance(origin);
+
+                    if (d < bestDist)
+                    {
+                        bestDist = d;
+                        best = other.getUniqueId();
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        return best;
     }
 
     private boolean webBetween(org.bukkit.World world, org.bukkit.util.Vector origin, org.bukkit.util.Vector dir, double len, org.bukkit.util.BoundingBox victimBox)
