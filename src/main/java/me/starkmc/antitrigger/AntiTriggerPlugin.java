@@ -903,6 +903,32 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         return true;
     }
 
+    private boolean webBetween(org.bukkit.World world, org.bukkit.util.Vector origin, org.bukkit.util.Vector dir, double len, org.bukkit.util.BoundingBox victimBox)
+    {
+        org.bukkit.util.BoundingBox near = victimBox.clone().expand(0.2);
+
+        for (double d = 0.3; d < len - 0.1; d += 0.25)
+        {
+            int x = (int)Math.floor(origin.getX() + dir.getX() * d);
+            int y = (int)Math.floor(origin.getY() + dir.getY() * d);
+            int z = (int)Math.floor(origin.getZ() + dir.getZ() * d);
+
+            if (!world.isChunkLoaded(x >> 4, z >> 4))
+            {
+                continue;
+            }
+
+            org.bukkit.block.Block block = world.getBlockAt(x, y, z);
+
+            if (block.getType() == org.bukkit.Material.COBWEB && !org.bukkit.util.BoundingBox.of(block).overlaps(near))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private boolean throughWall(Location eye, Player victim)
     {
         org.bukkit.World world = eye.getWorld();
@@ -956,7 +982,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
                             return false;
                         }
 
-                        if (world.rayTraceBlocks(eye, dir.normalize(), len - 0.1, org.bukkit.FluidCollisionMode.NEVER, true) == null)
+                        if (world.rayTraceBlocks(eye, dir.normalize(), len - 0.1, org.bukkit.FluidCollisionMode.NEVER, true) == null && !this.webBetween(world, origin, dir, len, bb))
                         {
                             return false;
                         }
