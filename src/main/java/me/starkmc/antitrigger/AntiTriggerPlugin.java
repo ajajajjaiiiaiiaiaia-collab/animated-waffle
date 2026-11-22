@@ -145,8 +145,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private double pTrigJitter = 1.5;
     private boolean pHitEnabled = true;
     private boolean pHitFlag = false;
-    private double pHitMargin = 0.15;
-    private double pHitPingMargin = 0.04;
+    private double pHitMargin = 0.25;
+    private double pHitPingMargin = 0.05;
     private int pTrigWindow = 100;
     private boolean multiEnabled = true;
     private int multiTargets = 3;
@@ -413,8 +413,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.pTrigFlag = c.getBoolean("prevent.trigger.flag", false);
         this.pHitEnabled = c.getBoolean("prevent.hitbox.enabled", true);
         this.pHitFlag = c.getBoolean("prevent.hitbox.flag", false);
-        this.pHitMargin = Math.max(0.1, c.getDouble("prevent.hitbox.margin", 0.15));
-        this.pHitPingMargin = Math.max(0.0, c.getDouble("prevent.hitbox.ping-margin", 0.04));
+        this.pHitMargin = Math.max(0.1, c.getDouble("prevent.hitbox.margin", 0.25));
+        this.pHitPingMargin = Math.max(0.0, c.getDouble("prevent.hitbox.ping-margin", 0.05));
         this.pTrigWindow = Math.max(20, c.getInt("prevent.trigger.window-ticks", 100));
         this.multiEnabled = c.getBoolean("fast.multiaura.enabled", true);
         this.multiTargets = Math.max(2, c.getInt("fast.multiaura.targets", 3));
