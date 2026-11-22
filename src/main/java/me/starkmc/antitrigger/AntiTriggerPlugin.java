@@ -747,6 +747,14 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         event.setCancelled(true);
         state.lastAttackTick = now;
+
+        if ("triggerlock".equals(rule) && this.skipReason(attacker) == null)
+        {
+            state.samples.addLast(new PlayerState.Sample(state.onTargetTicks, now, true));
+            state.trim(now, this.windowTicks, this.windowSize);
+            this.evaluate(attacker, state);
+        }
+
         this.recordAttack(attacker, state, victim, now, event.getDamage());
         this.fastChecks(attacker, state, now);
         state.blockedCount++;
