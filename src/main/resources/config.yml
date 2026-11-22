@@ -123,9 +123,9 @@ prevent:
     flag: false             # false = only cancel the hits (never adds VL or leads to a ban); true = also counts as a flag
   hitbox:
     enabled: true           # a hit never lands when the crosshair was clearly outside the target hitbox (as it was about one ping ago)
-    margin: 0.2             # blocks of tolerance around the hitbox
-    ping-margin: 0.06       # extra tolerance per 50 ms of the attacker ping
-    flag: false             # false = only cancel the hit
+    margin: 0.15            # blocks of tolerance around the hitbox
+    ping-margin: 0.04       # extra tolerance per 50 ms of the attacker ping
+    flag: false             # false = only cancel the hit; either way 3 cancelled hits inside 10 seconds add a flag
   wall:
     enabled: true           # hits on a player behind a solid block
   inventory:

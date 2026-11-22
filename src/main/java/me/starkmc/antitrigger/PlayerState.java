@@ -111,6 +111,7 @@ final class PlayerState
     UUID target;
     int onTargetTicks;
     int trigStreak;
+    final ArrayDeque<Integer> hitboxMisses = new ArrayDeque<>();
     int lastTrigTick = -1000;
     long lastMoveMs;
     double lastPx;

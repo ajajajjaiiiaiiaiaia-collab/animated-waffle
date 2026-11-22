@@ -142,8 +142,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private double pTrigJitter = 1.5;
     private boolean pHitEnabled = true;
     private boolean pHitFlag = false;
-    private double pHitMargin = 0.2;
-    private double pHitPingMargin = 0.06;
+    private double pHitMargin = 0.15;
+    private double pHitPingMargin = 0.04;
     private int pTrigWindow = 100;
     private boolean multiEnabled = true;
     private int multiTargets = 3;
@@ -407,8 +407,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.pTrigFlag = c.getBoolean("prevent.trigger.flag", false);
         this.pHitEnabled = c.getBoolean("prevent.hitbox.enabled", true);
         this.pHitFlag = c.getBoolean("prevent.hitbox.flag", false);
-        this.pHitMargin = Math.max(0.1, c.getDouble("prevent.hitbox.margin", 0.2));
-        this.pHitPingMargin = Math.max(0.0, c.getDouble("prevent.hitbox.ping-margin", 0.06));
+        this.pHitMargin = Math.max(0.1, c.getDouble("prevent.hitbox.margin", 0.15));
+        this.pHitPingMargin = Math.max(0.0, c.getDouble("prevent.hitbox.ping-margin", 0.04));
         this.pTrigWindow = Math.max(20, c.getInt("prevent.trigger.window-ticks", 100));
         this.multiEnabled = c.getBoolean("fast.multiaura.enabled", true);
         this.multiTargets = Math.max(2, c.getInt("fast.multiaura.targets", 3));
@@ -628,6 +628,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         Location eye = attacker.getEyeLocation();
         String reason = null;
         String rule = null;
+        boolean hitBurst = false;
         double dist = this.lagReach(attacker, victim, eye, now, Evidence.aim(eye, victim)[0]);
 
         if (this.pReachEnabled && dist > this.pReachMax + this.reachExtra(attacker) + this.reachPingMargin * attacker.getPing() / 100.0)
@@ -736,6 +737,14 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         {
             reason = "crosshair outside the hitbox";
             rule = "hitbox";
+            state.hitboxMisses.addLast(now);
+
+            while (!state.hitboxMisses.isEmpty() && now - state.hitboxMisses.peekFirst() > 200)
+            {
+                state.hitboxMisses.pollFirst();
+            }
+
+            hitBurst = state.hitboxMisses.size() >= 3;
         }
 
         if (reason == null && this.pWallEnabled && this.throughWall(eye, victim))
@@ -752,7 +761,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
-        if (rule != null && (!"triggerlock".equals(rule) || this.pTrigFlag) && (!"hitbox".equals(rule) || this.pHitFlag))
+        if (rule != null && (!"triggerlock".equals(rule) || this.pTrigFlag) && (!"hitbox".equals(rule) || this.pHitFlag || hitBurst))
         {
             Integer lastRule = state.lastRuleTick.get(rule);
 
