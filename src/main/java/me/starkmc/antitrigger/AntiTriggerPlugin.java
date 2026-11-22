@@ -142,8 +142,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private double pTrigJitter = 1.5;
     private boolean pHitEnabled = true;
     private boolean pHitFlag = false;
-    private double pHitMargin = 0.35;
-    private double pHitPingMargin = 0.12;
+    private double pHitMargin = 0.2;
+    private double pHitPingMargin = 0.06;
     private int pTrigWindow = 100;
     private boolean multiEnabled = true;
     private int multiTargets = 3;
@@ -407,8 +407,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.pTrigFlag = c.getBoolean("prevent.trigger.flag", false);
         this.pHitEnabled = c.getBoolean("prevent.hitbox.enabled", true);
         this.pHitFlag = c.getBoolean("prevent.hitbox.flag", false);
-        this.pHitMargin = Math.max(0.1, c.getDouble("prevent.hitbox.margin", 0.35));
-        this.pHitPingMargin = Math.max(0.0, c.getDouble("prevent.hitbox.ping-margin", 0.12));
+        this.pHitMargin = Math.max(0.1, c.getDouble("prevent.hitbox.margin", 0.2));
+        this.pHitPingMargin = Math.max(0.0, c.getDouble("prevent.hitbox.ping-margin", 0.06));
         this.pTrigWindow = Math.max(20, c.getInt("prevent.trigger.window-ticks", 100));
         this.multiEnabled = c.getBoolean("fast.multiaura.enabled", true);
         this.multiTargets = Math.max(2, c.getInt("fast.multiaura.targets", 3));
@@ -732,7 +732,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
         }
 
-        if (reason == null && this.pHitEnabled && dist >= Evidence.MIN_RELIABLE_DISTANCE && this.missesHitbox(attacker, victim, eye, now))
+        if (reason == null && this.pHitEnabled && dist >= 1.0 && this.missesHitbox(attacker, victim, eye, now))
         {
             reason = "crosshair outside the hitbox";
             rule = "hitbox";
@@ -854,8 +854,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         if (victimState != null)
         {
-            int lo = Math.max(0, (int)Math.floor(pingTicks - 1.0));
-            int hi = Math.min(15, (int)Math.ceil(pingTicks + 4.0));
+            int lo = Math.max(0, (int)Math.floor(pingTicks - 0.5));
+            int hi = Math.min(15, (int)Math.ceil(pingTicks + 2.5));
 
             for (PlayerState.BoxSnap snap : victimState.boxes)
             {
