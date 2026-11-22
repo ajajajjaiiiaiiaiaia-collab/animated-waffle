@@ -138,6 +138,10 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private boolean pTrigEnabled = true;
     private int pTrigStreak = 4;
     private boolean pTrigFlag = false;
+    private boolean pHitEnabled = true;
+    private boolean pHitFlag = false;
+    private double pHitMargin = 0.35;
+    private double pHitPingMargin = 0.12;
     private int pTrigWindow = 100;
     private boolean multiEnabled = true;
     private int multiTargets = 3;
@@ -397,6 +401,10 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.pTrigEnabled = c.getBoolean("prevent.trigger.enabled", true);
         this.pTrigStreak = Math.max(2, c.getInt("prevent.trigger.streak", 4));
         this.pTrigFlag = c.getBoolean("prevent.trigger.flag", false);
+        this.pHitEnabled = c.getBoolean("prevent.hitbox.enabled", true);
+        this.pHitFlag = c.getBoolean("prevent.hitbox.flag", false);
+        this.pHitMargin = Math.max(0.1, c.getDouble("prevent.hitbox.margin", 0.35));
+        this.pHitPingMargin = Math.max(0.0, c.getDouble("prevent.hitbox.ping-margin", 0.12));
         this.pTrigWindow = Math.max(20, c.getInt("prevent.trigger.window-ticks", 100));
         this.multiEnabled = c.getBoolean("fast.multiaura.enabled", true);
         this.multiTargets = Math.max(2, c.getInt("fast.multiaura.targets", 3));
@@ -720,6 +728,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
         }
 
+        if (reason == null && this.pHitEnabled && dist >= Evidence.MIN_RELIABLE_DISTANCE && this.missesHitbox(attacker, victim, eye, now))
+        {
+            reason = "crosshair outside the hitbox";
+            rule = "hitbox";
+        }
+
         if (reason == null && this.pWallEnabled && this.throughWall(eye, victim))
         {
             reason = "hit through a solid block";
@@ -734,7 +748,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
-        if (rule != null && (!"triggerlock".equals(rule) || this.pTrigFlag))
+        if (rule != null && (!"triggerlock".equals(rule) || this.pTrigFlag) && (!"hitbox".equals(rule) || this.pHitFlag))
         {
             Integer lastRule = state.lastRuleTick.get(rule);
 
@@ -753,6 +767,11 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             state.samples.addLast(new PlayerState.Sample(state.onTargetTicks, now, true));
             state.trim(now, this.windowTicks, this.windowSize);
             this.evaluate(attacker, state);
+        }
+
+        if ("hitbox".equals(rule) && this.offEnabled && this.skipReason(attacker) == null)
+        {
+            this.recordAttempt(attacker, state, victim, now, false);
         }
 
         this.recordAttack(attacker, state, victim, now, event.getDamage());
@@ -798,6 +817,45 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     }
 
     /** True when every line from the eye to the victim (nearest point, centre, head) is blocked by a solid block. */
+    private boolean missesHitbox(Player attacker, Player victim, Location eye, int now)
+    {
+        org.bukkit.util.Vector origin = eye.toVector();
+        org.bukkit.util.Vector dir = eye.getDirection();
+        double pingTicks = attacker.getPing() / 50.0;
+        double margin = this.pHitMargin + this.pHitPingMargin * pingTicks;
+        java.util.List<org.bukkit.util.BoundingBox> boxes = new ArrayList<>();
+        boxes.add(victim.getBoundingBox());
+        PlayerState victimState = this.states.get(victim.getUniqueId());
+
+        if (victimState != null)
+        {
+            int lo = Math.max(0, (int)Math.floor(pingTicks - 1.0));
+            int hi = Math.min(15, (int)Math.ceil(pingTicks + 4.0));
+
+            for (PlayerState.BoxSnap snap : victimState.boxes)
+            {
+                int age = now - snap.tick();
+
+                if (age >= lo && age <= hi)
+                {
+                    boxes.add(snap.box());
+                }
+            }
+        }
+
+        for (org.bukkit.util.BoundingBox bb : boxes)
+        {
+            org.bukkit.util.BoundingBox grown = bb.clone().expand(margin);
+
+            if (grown.contains(origin) || grown.rayTrace(origin, dir, 12.0) != null)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private boolean throughWall(Location eye, Player victim)
     {
         org.bukkit.World world = eye.getWorld();
