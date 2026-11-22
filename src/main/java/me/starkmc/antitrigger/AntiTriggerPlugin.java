@@ -848,6 +848,13 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         org.bukkit.util.Vector dir = eye.getDirection();
         double pingTicks = attacker.getPing() / 50.0;
         double margin = this.pHitMargin + this.pHitPingMargin * pingTicks;
+        PlayerState attackerState = this.states.get(attacker.getUniqueId());
+
+        if (attackerState != null && attackerState.vl >= 1.0)
+        {
+            margin *= 0.5;
+        }
+
         java.util.List<org.bukkit.util.BoundingBox> boxes = new ArrayList<>();
         boxes.add(victim.getBoundingBox());
         PlayerState victimState = this.states.get(victim.getUniqueId());
