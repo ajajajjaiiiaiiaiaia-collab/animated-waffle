@@ -136,7 +136,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private boolean pBehindEnabled = true;
     private double pBehindAngle = 100.0;
     private boolean pTrigEnabled = true;
-    private int pTrigStreak = 3;
+    private int pTrigStreak = 4;
+    private boolean pTrigFlag = false;
     private int pTrigWindow = 100;
     private boolean multiEnabled = true;
     private int multiTargets = 3;
@@ -394,7 +395,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.pBehindEnabled = c.getBoolean("prevent.behind.enabled", true);
         this.pBehindAngle = c.getDouble("prevent.behind.angle", 100.0);
         this.pTrigEnabled = c.getBoolean("prevent.trigger.enabled", true);
-        this.pTrigStreak = Math.max(2, c.getInt("prevent.trigger.streak", 3));
+        this.pTrigStreak = Math.max(2, c.getInt("prevent.trigger.streak", 4));
+        this.pTrigFlag = c.getBoolean("prevent.trigger.flag", false);
         this.pTrigWindow = Math.max(20, c.getInt("prevent.trigger.window-ticks", 100));
         this.multiEnabled = c.getBoolean("fast.multiaura.enabled", true);
         this.multiTargets = Math.max(2, c.getInt("fast.multiaura.targets", 3));
@@ -732,7 +734,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             return;
         }
 
-        if (rule != null)
+        if (rule != null && (!"triggerlock".equals(rule) || this.pTrigFlag))
         {
             Integer lastRule = state.lastRuleTick.get(rule);
 

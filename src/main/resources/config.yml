@@ -116,8 +116,9 @@ prevent:
     window-ticks: 100
   trigger:
     enabled: true           # a hit is cancelled when the crosshair landed on the target by itself (no mouse, no keyboard input) several times in a row
-    streak: 3
+    streak: 4
     window-ticks: 100
+    flag: false             # false = only cancel the hits (never adds VL or leads to a ban); true = also counts as a flag
   wall:
     enabled: true           # hits on a player behind a solid block
   inventory:
