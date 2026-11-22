@@ -1015,6 +1015,33 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
         }
 
+        org.bukkit.util.Vector lookDir = eye.getDirection();
+        boolean lookHit = false;
+        boolean lookAllWeb = true;
+
+        for (org.bukkit.util.BoundingBox lb : boxes)
+        {
+            RayTraceResult lr = lb.clone().expand(0.1).rayTrace(origin, lookDir, 8.0);
+
+            if (lr == null)
+            {
+                continue;
+            }
+
+            lookHit = true;
+
+            if (!this.webBetween(world, origin, lookDir, lr.getHitPosition().distance(origin), lb))
+            {
+                lookAllWeb = false;
+                break;
+            }
+        }
+
+        if (lookHit && lookAllWeb)
+        {
+            return true;
+        }
+
         for (org.bukkit.util.BoundingBox bb : boxes)
         {
             if (bb.clone().expand(0.3).contains(origin))
