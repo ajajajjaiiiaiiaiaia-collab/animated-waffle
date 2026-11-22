@@ -14,6 +14,10 @@ detection:
   window-seconds: 40      # hits older than this are dropped
   instant-ticks: 2        # "instant" = attack within this many ticks of the crosshair touching the enemy (1 tick = 50ms)
   min-instant-ratio: 0.8  # share of hits in the window that must be instant
+  fast-path:
+    enabled: true
+    samples: 6
+    ratio: 0.85
   max-air-swings: 1       # swings at nothing allowed inside the window (humans swing a lot)
   # Third signal: the hit happened while the player was NOT moving the mouse (the enemy walked into the crosshair).
   require-passive: true   # false = judge only on the first two signals (more sensitive, more false positives)

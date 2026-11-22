@@ -1,5 +1,5 @@
 name: AntiTrigger
-version: "1.14.4"
+version: "1.14.5"
 main: me.starkmc.antitrigger.AntiTriggerPlugin
 api-version: "1.21"
 softdepend: [packetevents]

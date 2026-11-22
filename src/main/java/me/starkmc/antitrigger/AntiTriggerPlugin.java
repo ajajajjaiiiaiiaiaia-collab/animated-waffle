@@ -68,6 +68,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int windowTicks;
     private int instantTicks;
     private double minInstantRatio;
+    private boolean fastTrigEnabled = true;
+    private int fastTrigSamples = 6;
+    private double fastTrigRatio = 0.85;
     private int maxAirSwings;
     private boolean requirePassive;
     private long passiveMs;
@@ -294,6 +297,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.windowTicks = Math.max(20, c.getInt("detection.window-seconds", 40) * 20);
         this.instantTicks = Math.max(1, c.getInt("detection.instant-ticks", 2));
         this.minInstantRatio = c.getDouble("detection.min-instant-ratio", 0.8);
+        this.fastTrigEnabled = c.getBoolean("detection.fast-path.enabled", true);
+        this.fastTrigSamples = Math.max(4, c.getInt("detection.fast-path.samples", 6));
+        this.fastTrigRatio = Math.min(1.0, Math.max(0.5, c.getDouble("detection.fast-path.ratio", 0.85)));
         this.maxAirSwings = Math.max(0, c.getInt("detection.max-air-swings", 1));
         this.requirePassive = c.getBoolean("detection.require-passive", true);
         this.passiveMs = Math.max(0, c.getLong("detection.passive-ms", 100L));
@@ -1271,6 +1277,28 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
     private void evaluate(Player player, PlayerState state)
     {
+        if (this.fastTrigEnabled && state.samples.size() >= this.fastTrigSamples)
+        {
+            int fast = 0;
+
+            for (PlayerState.Sample sample : state.samples)
+            {
+                if (sample.reaction() <= this.instantTicks + 1 && sample.passive())
+                {
+                    fast++;
+                }
+            }
+
+            double fastRatio = (double)fast / state.samples.size();
+
+            if (fast >= this.fastTrigSamples && fastRatio >= this.fastTrigRatio)
+            {
+                this.flag(player, state, fastRatio, fastRatio, 0, state.samples.size());
+                state.samples.clear();
+                return;
+            }
+        }
+
         if (state.samples.size() < this.minSamples)
         {
             this.debug(player, "collecting hits: " + state.samples.size() + "/" + this.minSamples);
