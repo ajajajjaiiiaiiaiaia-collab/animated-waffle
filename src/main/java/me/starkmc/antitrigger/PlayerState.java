@@ -45,6 +45,10 @@ final class PlayerState
     int lastSwapTick = -1000;
     int lockTicks;
     int lockMiss;
+    int tightTicks;
+    int tightMiss;
+    double tightRot;
+    boolean tightFired;
     int lastLockTick = -100000;
     int lastElytraFlagTick = -100000;
     int lastAimCheckTick = -100000;

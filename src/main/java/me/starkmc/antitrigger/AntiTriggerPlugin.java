@@ -191,6 +191,11 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private double elytraMaxDistance;
     private double elytraLockAngle;
     private int elytraLockTicks;
+    private boolean elytraTightEnabled = true;
+    private double elytraTightAngle = 2.5;
+    private int elytraTightTicks = 40;
+    private double elytraTightMinDist = 6.0;
+    private double elytraTightRot = 25.0;
     private int elytraBoostCount;
     private int elytraWindowTicks;
     private double elytraMaxStd;
@@ -457,6 +462,11 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.elytraMaxDistance = Math.max(10.0, c.getDouble("elytratarget.max-distance", 100.0));
         this.elytraLockAngle = Math.max(1.0, c.getDouble("elytratarget.lock-angle", 6.0));
         this.elytraLockTicks = Math.max(5, c.getInt("elytratarget.lock-ticks", 20));
+        this.elytraTightEnabled = c.getBoolean("elytratarget.tight-lock.enabled", true);
+        this.elytraTightAngle = Math.max(0.5, c.getDouble("elytratarget.tight-lock.angle", 2.5));
+        this.elytraTightTicks = Math.max(10, c.getInt("elytratarget.tight-lock.ticks", 40));
+        this.elytraTightMinDist = Math.max(2.0, c.getDouble("elytratarget.tight-lock.min-distance", 6.0));
+        this.elytraTightRot = Math.max(5.0, c.getDouble("elytratarget.tight-lock.min-rotation", 25.0));
         this.elytraBoostCount = Math.max(3, c.getInt("elytratarget.boost-count", 4));
         this.elytraWindowTicks = Math.max(40, c.getInt("elytratarget.window-seconds", 8) * 20);
         this.elytraMaxStd = Math.max(0.2, c.getDouble("elytratarget.max-stddev-ticks", 1.5));
@@ -560,7 +570,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
 
             this.recordFrame(player, state, eye, dYaw, dPitch, hit);
-            this.trackElytra(player, state, eye);
+            this.trackElytra(player, state, eye, dYaw, dPitch);
         }
     }
 
@@ -1949,7 +1959,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     }
 
     /** Every tick while gliding: how long has the crosshair stayed on the nearest player? ElytraTarget locks on automatically. */
-    private void trackElytra(Player player, PlayerState state, Location eye)
+    private void trackElytra(Player player, PlayerState state, Location eye, float dYaw, float dPitch)
     {
         if (!this.elytraEnabled)
         {
@@ -1960,6 +1970,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         {
             state.lockTicks = 0;
             state.lockMiss = 0;
+            state.tightTicks = 0;
+            state.tightRot = 0.0;
+            state.tightFired = false;
             return;
         }
 
@@ -1986,6 +1999,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         {
             state.lockTicks = 0;
             state.lockMiss = 0;
+            state.tightTicks = 0;
+            state.tightRot = 0.0;
+            state.tightFired = false;
             return;
         }
 
@@ -1993,6 +2009,36 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         state.elytraTarget = nearest.getName();
         state.elytraDist = aim[0];
         state.elytraAngle = aim[1];
+
+        if (this.elytraTightEnabled)
+        {
+            if (aim[1] <= this.elytraTightAngle && aim[0] >= this.elytraTightMinDist)
+            {
+                state.tightTicks++;
+                state.tightMiss = 0;
+                state.tightRot += Math.abs(dYaw) + Math.abs(dPitch);
+
+                if (state.tightTicks >= this.elytraTightTicks && state.tightRot >= this.elytraTightRot && !state.tightFired)
+                {
+                    int tickNow = Bukkit.getCurrentTick();
+                    String tightSkip = this.skipReason(player);
+
+                    if (tightSkip == null && tickNow - state.lastElytraFlagTick >= this.elytraCooldownTicks)
+                    {
+                        state.tightFired = true;
+                        state.lastElytraFlagTick = tickNow;
+                        this.debug(player, String.format(Locale.ROOT, "elytra tight lock: crosshair within %.1f degrees of %s for %d ticks while turning %.0f degrees", this.elytraTightAngle, nearest.getName(), state.tightTicks, state.tightRot));
+                        this.flagElytra(player, state, 0, 0.0, 0.0, 0, true);
+                    }
+                }
+            }
+            else if (++state.tightMiss > 2)
+            {
+                state.tightTicks = 0;
+                state.tightRot = 0.0;
+                state.tightFired = false;
+            }
+        }
 
         if (aim[1] <= this.elytraLockAngle)
         {

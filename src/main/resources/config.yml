@@ -73,6 +73,12 @@ elytratarget:
   max-mean-ticks: 18      # average ticks between rockets must be at most this
   max-stddev-ticks: 1.5   # humans vary by several ticks; a bot varies by about 0 to 1
   swap-cycles: 3          # slot swap -> rocket -> swap back cycles needed
+  tight-lock:
+    enabled: true         # flag when the crosshair stays glued to a moving player while gliding, even if the rockets are irregular
+    angle: 2.5
+    ticks: 40
+    min-distance: 6.0
+    min-rotation: 25.0
   require-lock: true
   vl: 2.0
   cooldown-seconds: 6
