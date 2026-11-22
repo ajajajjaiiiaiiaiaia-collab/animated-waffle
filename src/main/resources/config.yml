@@ -116,8 +116,10 @@ prevent:
     window-ticks: 100
   trigger:
     enabled: true           # a hit is cancelled when the crosshair landed on the target by itself (no mouse, no keyboard input) several times in a row
-    streak: 4
+    streak: 3
     window-ticks: 100
+    jitter-degrees: 1.5     # mouse counts as still when it moved less than this in total over the last 3 ticks (catches bots that fake tiny mouse movements)
+    require-no-keyboard: false
     flag: false             # false = only cancel the hits (never adds VL or leads to a ban); true = also counts as a flag
   hitbox:
     enabled: true           # a hit never lands when the crosshair was clearly outside the target hitbox (as it was about one ping ago)

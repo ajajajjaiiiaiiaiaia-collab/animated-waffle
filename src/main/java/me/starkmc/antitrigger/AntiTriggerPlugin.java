@@ -136,8 +136,10 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private boolean pBehindEnabled = true;
     private double pBehindAngle = 100.0;
     private boolean pTrigEnabled = true;
-    private int pTrigStreak = 4;
+    private int pTrigStreak = 3;
     private boolean pTrigFlag = false;
+    private boolean pTrigKeys = false;
+    private double pTrigJitter = 1.5;
     private boolean pHitEnabled = true;
     private boolean pHitFlag = false;
     private double pHitMargin = 0.35;
@@ -399,7 +401,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.pBehindEnabled = c.getBoolean("prevent.behind.enabled", true);
         this.pBehindAngle = c.getDouble("prevent.behind.angle", 100.0);
         this.pTrigEnabled = c.getBoolean("prevent.trigger.enabled", true);
-        this.pTrigStreak = Math.max(2, c.getInt("prevent.trigger.streak", 4));
+        this.pTrigStreak = Math.max(2, c.getInt("prevent.trigger.streak", 3));
+        this.pTrigKeys = c.getBoolean("prevent.trigger.require-no-keyboard", false);
+        this.pTrigJitter = Math.max(0.0, c.getDouble("prevent.trigger.jitter-degrees", 1.5));
         this.pTrigFlag = c.getBoolean("prevent.trigger.flag", false);
         this.pHitEnabled = c.getBoolean("prevent.hitbox.enabled", true);
         this.pHitFlag = c.getBoolean("prevent.hitbox.flag", false);
@@ -704,7 +708,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             boolean onTarget = victim.getUniqueId().equals(state.target) && state.onTargetTicks >= 1;
             long sinceRot = nowMs - this.lastRotation.getOrDefault(attacker.getUniqueId(), 0L);
             long sinceMove = nowMs - state.lastMoveMs;
-            boolean idle = dist >= Evidence.MIN_RELIABLE_DISTANCE && onTarget && state.onTargetTicks <= this.instantTicks && sinceRot >= this.passiveMs && sinceMove >= this.passiveMs;
+            boolean idle = dist >= Evidence.MIN_RELIABLE_DISTANCE && onTarget && state.onTargetTicks <= this.instantTicks && this.mouseStill(state, sinceRot) && (!this.pTrigKeys || sinceMove >= this.passiveMs);
 
             if (idle)
             {
@@ -817,6 +821,27 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     }
 
     /** True when every line from the eye to the victim (nearest point, centre, head) is blocked by a solid block. */
+    private boolean mouseStill(PlayerState state, long sinceRotationMs)
+    {
+        if (sinceRotationMs >= this.passiveMs)
+        {
+            return true;
+        }
+
+        double sum = 0.0;
+        int n = 0;
+        java.util.Iterator<Evidence.Frame> it = state.frames.descendingIterator();
+
+        while (it.hasNext() && n < 3)
+        {
+            Evidence.Frame f = it.next();
+            sum += Math.abs(f.dYaw()) + Math.abs(f.dPitch());
+            n++;
+        }
+
+        return n == 3 && sum < this.pTrigJitter;
+    }
+
     private boolean missesHitbox(Player attacker, Player victim, Location eye, int now)
     {
         org.bukkit.util.Vector origin = eye.toVector();
@@ -984,7 +1009,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         }
 
         long sinceRotation = System.currentTimeMillis() - this.lastRotation.getOrDefault(attacker.getUniqueId(), 0L);
-        state.samples.addLast(new PlayerState.Sample(state.onTargetTicks, now, sinceRotation >= this.passiveMs));
+        state.samples.addLast(new PlayerState.Sample(state.onTargetTicks, now, this.mouseStill(state, sinceRotation)));
         this.debug(attacker, "hit on " + victim.getName() + ": crosshair on target for " + state.onTargetTicks + " tick(s) (instant if <= " + this.instantTicks + "), mouse still for " + sinceRotation + "ms (passive if >= " + this.passiveMs + "), air swings in window " + state.airSwings.size());
         state.trim(now, this.windowTicks, this.windowSize);
         this.evaluate(attacker, state);
