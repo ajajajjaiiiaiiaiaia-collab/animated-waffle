@@ -135,6 +135,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private int pCpsMax = 24;
     private boolean pBehindEnabled = true;
     private double pBehindAngle = 100.0;
+    private boolean pTrigEnabled = true;
+    private int pTrigStreak = 3;
+    private int pTrigWindow = 100;
     private boolean multiEnabled = true;
     private int multiTargets = 3;
     private int multiTicks = 10;
@@ -390,6 +393,9 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.pCpsMax = Math.max(10, c.getInt("prevent.cps.max", 24));
         this.pBehindEnabled = c.getBoolean("prevent.behind.enabled", true);
         this.pBehindAngle = c.getDouble("prevent.behind.angle", 100.0);
+        this.pTrigEnabled = c.getBoolean("prevent.trigger.enabled", true);
+        this.pTrigStreak = Math.max(2, c.getInt("prevent.trigger.streak", 3));
+        this.pTrigWindow = Math.max(20, c.getInt("prevent.trigger.window-ticks", 100));
         this.multiEnabled = c.getBoolean("fast.multiaura.enabled", true);
         this.multiTargets = Math.max(2, c.getInt("fast.multiaura.targets", 3));
         this.multiTicks = Math.max(2, c.getInt("fast.multiaura.ticks", 10));
@@ -487,6 +493,17 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
 
             Location eye = player.getEyeLocation();
+            Location feet = player.getLocation();
+
+            if (state.hasPos && (Math.abs(feet.getX() - state.lastPx) > 0.002 || Math.abs(feet.getY() - state.lastPy) > 0.002 || Math.abs(feet.getZ() - state.lastPz) > 0.002))
+            {
+                state.lastMoveMs = System.currentTimeMillis();
+            }
+
+            state.lastPx = feet.getX();
+            state.lastPy = feet.getY();
+            state.lastPz = feet.getZ();
+            state.hasPos = true;
 
             if (this.packetHook == null && (Math.abs(eye.getYaw() - state.lastYaw) > 0.001F || Math.abs(eye.getPitch() - state.lastPitch) > 0.001F))
             {
@@ -636,7 +653,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         {
             double lagAngle = this.lagCompensated(attacker, victim, eye, now)[1];
 
-            if (lagAngle > this.pBehindAngle)
+            if (lagAngle > Math.min(175.0, this.pBehindAngle + attacker.getPing() / 4.0))
             {
                 reason = "victim behind, " + Math.round(lagAngle) + " deg off";
             }
@@ -668,6 +685,36 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             {
                 reason = "attacking while using " + held.name().toLowerCase(Locale.ROOT);
                 rule = "useitem";
+            }
+        }
+
+        if (reason == null && this.pTrigEnabled)
+        {
+            long nowMs = System.currentTimeMillis();
+            boolean onTarget = victim.getUniqueId().equals(state.target) && state.onTargetTicks >= 1;
+            long sinceRot = nowMs - this.lastRotation.getOrDefault(attacker.getUniqueId(), 0L);
+            long sinceMove = nowMs - state.lastMoveMs;
+            boolean idle = dist >= Evidence.MIN_RELIABLE_DISTANCE && onTarget && state.onTargetTicks <= this.instantTicks && sinceRot >= this.passiveMs && sinceMove >= this.passiveMs;
+
+            if (idle)
+            {
+                if (now - state.lastTrigTick > this.pTrigWindow)
+                {
+                    state.trigStreak = 0;
+                }
+
+                state.trigStreak++;
+                state.lastTrigTick = now;
+
+                if (state.trigStreak >= this.pTrigStreak)
+                {
+                    reason = "no mouse or keyboard input before " + state.trigStreak + " hits in a row";
+                    rule = "triggerlock";
+                }
+            }
+            else
+            {
+                state.trigStreak = 0;
             }
         }
 
@@ -757,9 +804,14 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
         if (victimState != null)
         {
+            int i = 0;
+
             for (PlayerState.BoxSnap snap : victimState.boxes)
             {
-                boxes.add(snap.box());
+                if (i++ % 3 == 0)
+                {
+                    boxes.add(snap.box());
+                }
             }
         }
 
@@ -772,8 +824,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
 
             org.bukkit.util.Vector center = bb.getCenter();
             double[] ys = {bb.getMinY() + 0.1, center.getY(), bb.getMaxY() - 0.2};
-            double[] xs = {bb.getMinX() + 0.05, center.getX(), bb.getMaxX() - 0.05};
-            double[] zs = {bb.getMinZ() + 0.05, center.getZ(), bb.getMaxZ() - 0.05};
+            double[] xs = {bb.getMinX() + 0.05, bb.getMaxX() - 0.05};
+            double[] zs = {bb.getMinZ() + 0.05, bb.getMaxZ() - 0.05};
 
             for (double y : ys)
             {

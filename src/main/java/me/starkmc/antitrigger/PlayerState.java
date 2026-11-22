@@ -110,6 +110,13 @@ final class PlayerState
 
     UUID target;
     int onTargetTicks;
+    int trigStreak;
+    int lastTrigTick = -1000;
+    long lastMoveMs;
+    double lastPx;
+    double lastPy;
+    double lastPz;
+    boolean hasPos;
     int lastAttackTick = -1000;
     float lastYaw;
     float lastPitch;

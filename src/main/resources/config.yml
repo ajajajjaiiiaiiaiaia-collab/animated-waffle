@@ -114,6 +114,10 @@ prevent:
     enabled: true           # a real client always swings its arm with a hit
     min-misses: 2
     window-ticks: 100
+  trigger:
+    enabled: true           # a hit is cancelled when the crosshair landed on the target by itself (no mouse, no keyboard input) several times in a row
+    streak: 3
+    window-ticks: 100
   wall:
     enabled: true           # hits on a player behind a solid block
   inventory:
