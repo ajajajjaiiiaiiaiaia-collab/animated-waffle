@@ -2087,12 +2087,22 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             state.swapCycles.pollFirst();
         }
 
-        if (now - state.lastElytraFlagTick < this.elytraCooldownTicks || this.skipReason(player) != null)
+        String elytraSkip = this.skipReason(player);
+
+        if (elytraSkip != null)
         {
+            this.debug(player, "elytra not judged: " + elytraSkip);
+            return;
+        }
+
+        if (now - state.lastElytraFlagTick < this.elytraCooldownTicks)
+        {
+            this.debug(player, "elytra not judged: cooldown after the last flag");
             return;
         }
 
         double[] bs = this.boostStats(state);
+        this.debug(player, String.format(Locale.ROOT, "elytra: rockets %d/%d, mean %.1f ticks (need %.0f to %.0f), stddev %.1f (max %.1f), swap cycles %d/%d, aim lock %s (angle to nearest player %.1f, need <= %.1f for %d ticks)", (int)bs[0], this.elytraBoostCount, bs[1], (double)this.elytraMinMean, (double)this.elytraMaxMean, bs[2], (double)this.elytraMaxStd, state.swapCycles.size(), this.elytraSwapCycles, (now - state.lastLockTick <= this.elytraWindowTicks) ? "yes" : "no", state.elytraAngle, (double)this.elytraLockAngle, this.elytraLockTicks));
         boolean regular = bs[0] >= this.elytraBoostCount && bs[1] >= this.elytraMinMean && bs[1] <= this.elytraMaxMean && bs[2] <= this.elytraMaxStd;
         boolean swapPattern = state.swapCycles.size() >= this.elytraSwapCycles;
         boolean lock = now - state.lastLockTick <= this.elytraWindowTicks;
