@@ -1,12 +1,12 @@
 name: ZoneArmor
-version: "1.0.1"
+version: "1.0.2"
 main: me.starkmc.zonearmor.ZoneArmorPlugin
 api-version: "1.21"
 description: Forces a diamond chestplate inside defined zones.
 commands:
   zonearmor:
     description: ZoneArmor admin command
-    usage: /zonearmor <pos1|pos2|create|delete|list>
+    usage: /zonearmor <wand|pos1|pos2|create|delete|list>
     permission: zonearmor.admin
 permissions:
   zonearmor.admin:

@@ -57,7 +57,7 @@ public final class ZoneArmorPlugin extends JavaPlugin implements Listener {
     private final Map<String, Zone> zones = new LinkedHashMap<>();
     private final Map<UUID, Location> pos1 = new HashMap<>();
     private final Map<UUID, Location> pos2 = new HashMap<>();
-    private NamespacedKey kForced, kActive, kItem;
+    private NamespacedKey kForced, kActive, kItem, kWand;
     private File zonesFile;
 
     @Override
@@ -65,6 +65,7 @@ public final class ZoneArmorPlugin extends JavaPlugin implements Listener {
         kForced = new NamespacedKey(this, "forced");
         kActive = new NamespacedKey(this, "active");
         kItem = new NamespacedKey(this, "item");
+        kWand = new NamespacedKey(this, "wand");
         zonesFile = new File(getDataFolder(), "zones.yml");
         loadZones();
         getServer().getPluginManager().registerEvents(this, this);
@@ -280,6 +281,25 @@ public final class ZoneArmorPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    private boolean isWand(ItemStack it) {
+        return it != null && it.hasItemMeta()
+                && it.getItemMeta().getPersistentDataContainer().has(kWand, PersistentDataType.BYTE);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onWand(PlayerInteractEvent e) {
+        if (e.getHand() != EquipmentSlot.HAND || e.getClickedBlock() == null) return;
+        Player p = e.getPlayer();
+        if (!p.hasPermission("zonearmor.admin") || !isWand(e.getItem())) return;
+        Action a = e.getAction();
+        if (a != Action.LEFT_CLICK_BLOCK && a != Action.RIGHT_CLICK_BLOCK) return;
+        e.setCancelled(true);
+        Location l = e.getClickedBlock().getLocation();
+        boolean first = a == Action.LEFT_CLICK_BLOCK;
+        (first ? pos1 : pos2).put(p.getUniqueId(), l);
+        p.sendMessage((first ? "pos1 " : "pos2 ") + l.getBlockX() + "," + l.getBlockY() + "," + l.getBlockZ());
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInteract(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
@@ -312,6 +332,15 @@ public final class ZoneArmorPlugin extends JavaPlugin implements Listener {
                 if (!(s instanceof Player p)) return true;
                 (sub.equals("pos1") ? pos1 : pos2).put(p.getUniqueId(), p.getLocation());
                 s.sendMessage("ok");
+            }
+            case "wand" -> {
+                if (!(s instanceof Player p)) return true;
+                ItemStack w = new ItemStack(Material.GOLDEN_AXE);
+                ItemMeta m = w.getItemMeta();
+                m.displayName(net.kyori.adventure.text.Component.text("ZoneArmor Wand"));
+                m.getPersistentDataContainer().set(kWand, PersistentDataType.BYTE, (byte) 1);
+                w.setItemMeta(m);
+                give(p, w);
             }
             case "create" -> {
                 if (!(s instanceof Player p) || a.length < 2) { s.sendMessage("/zonearmor create <name>"); return true; }
@@ -346,7 +375,7 @@ public final class ZoneArmorPlugin extends JavaPlugin implements Listener {
 
     @Override
     public List<String> onTabComplete(CommandSender s, Command c, String l, String[] a) {
-        if (a.length == 1) return List.of("pos1", "pos2", "create", "delete", "list");
+        if (a.length == 1) return List.of("wand", "pos1", "pos2", "create", "delete", "list");
         if (a.length == 2 && a[0].equalsIgnoreCase("delete")) return new ArrayList<>(zones.keySet());
         return List.of();
     }
