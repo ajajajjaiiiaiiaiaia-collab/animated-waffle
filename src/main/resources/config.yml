@@ -1,0 +1,46 @@
+settings:
+  check-interval-ticks: 10
+  default-enabled: true
+  hide-armor-model: true
+
+messages:
+  prefix: "&8[&bسكن&8] &7"
+  enabled: "تم تفعيل سكن الدروع لك."
+  disabled: "تم إيقاف سكن الدروع لك."
+  applied: "تم تغيير سكنك إلى &f%set%&7."
+  restored: "تم إرجاع سكنك الأصلي."
+  no-permission: "&cليس لديك صلاحية."
+  unknown-set: "&cمجموعة غير موجودة."
+  given: "تم إعطاء %player% مجموعة %set%."
+  reloaded: "تمت إعادة التحميل."
+
+sets:
+  example:
+    display-name: "&bExample"
+    texture-value: ""
+    texture-signature: ""
+    pieces:
+      helmet:
+        material: LEATHER_HELMET
+        name: "&bخوذة Example"
+        color: "#00AAFF"
+        lore:
+          - "&7البس القطع الأربع لتغيير السكن"
+      chestplate:
+        material: LEATHER_CHESTPLATE
+        name: "&bصدرية Example"
+        color: "#00AAFF"
+        lore:
+          - "&7البس القطع الأربع لتغيير السكن"
+      leggings:
+        material: LEATHER_LEGGINGS
+        name: "&bبنطال Example"
+        color: "#00AAFF"
+        lore:
+          - "&7البس القطع الأربع لتغيير السكن"
+      boots:
+        material: LEATHER_BOOTS
+        name: "&bحذاء Example"
+        color: "#00AAFF"
+        lore:
+          - "&7البس القطع الأربع لتغيير السكن"

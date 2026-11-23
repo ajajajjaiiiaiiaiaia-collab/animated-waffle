@@ -1,0 +1,17 @@
+name: ArmorSkins
+version: "1.0.0"
+main: me.starkmc.armorskins.ArmorSkinsPlugin
+api-version: "1.21"
+description: Wearing a full configured armor set changes the wearer's skin.
+commands:
+  setting:
+    description: Toggle armor-set skins for yourself
+    usage: /setting [on|off]
+  armorskin:
+    description: ArmorSkins admin command
+    usage: /armorskin <give|reload|list>
+    permission: armorskins.admin
+permissions:
+  armorskins.admin:
+    description: Admin commands
+    default: op
