@@ -113,7 +113,7 @@ public final class ZoneArmorPlugin extends JavaPlugin implements Listener {
     }
 
     private boolean exempt(Player p) {
-        return p.hasPermission("zonearmor.bypass");
+        return false;
     }
 
     private boolean isForced(ItemStack it) {

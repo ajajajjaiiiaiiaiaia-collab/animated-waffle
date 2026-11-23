@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>me.starkmc</groupId>
   <artifactId>ZoneArmor</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <packaging>jar</packaging>
   <properties>
     <maven.compiler.release>21</maven.compiler.release>

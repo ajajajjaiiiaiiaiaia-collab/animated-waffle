@@ -26,6 +26,6 @@ jobs:
         run: |
           gh release delete zonearmor-latest --cleanup-tag --yes || true
           gh release create zonearmor-latest target/ZoneArmor-*.jar \
-            --title "ZoneArmor 1.0.0 latest build" \
+            --title "ZoneArmor 1.0.1 latest build" \
             --notes "Automatic build from commit ${GITHUB_SHA::7}" \
             --target "$GITHUB_SHA"

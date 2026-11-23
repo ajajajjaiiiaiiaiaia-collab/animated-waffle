@@ -1,5 +1,5 @@
 name: ZoneArmor
-version: "1.0.0"
+version: "1.0.1"
 main: me.starkmc.zonearmor.ZoneArmorPlugin
 api-version: "1.21"
 description: Forces a diamond chestplate inside defined zones.
@@ -12,6 +12,3 @@ permissions:
   zonearmor.admin:
     description: Manage zones
     default: op
-  zonearmor.bypass:
-    description: Not affected by zones
-    default: false
