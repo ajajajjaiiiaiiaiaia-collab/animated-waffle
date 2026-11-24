@@ -1,0 +1,19 @@
+name: StarkKits
+version: "1.0.0"
+main: me.starkmc.kits.KitsPlugin
+api-version: "1.21"
+description: Kit system with GUI editor, cooldowns and per-kit permissions.
+commands:
+  kit:
+    description: Open the kit menu
+    usage: /kit [manage]
+permissions:
+  starkkits.use:
+    description: Open the kit menu
+    default: true
+  starkkits.admin:
+    description: Manage kits
+    default: op
+  starkkits.kit.*:
+    description: Access to every kit
+    default: false
