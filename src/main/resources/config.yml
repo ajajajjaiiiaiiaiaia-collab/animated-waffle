@@ -1,0 +1,5 @@
+labels:
+  - crates
+  - crate
+give-command: "crate giveKey %key% %player% %amount%"
+max-amount: 10000

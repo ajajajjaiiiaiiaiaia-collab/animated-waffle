@@ -1,0 +1,11 @@
+name: CratesRank
+version: "1.0.0"
+main: me.starkmc.cratesrank.CratesRankPlugin
+api-version: "1.21"
+depend: [LuckPerms]
+softdepend: [PhoenixCratesLite, PhoenixCrates]
+description: Adds /crates givekey rank <key> <rank> <amount> on top of PhoenixCrates.
+permissions:
+  cratesrank.admin:
+    description: Use /crates givekey rank
+    default: op
