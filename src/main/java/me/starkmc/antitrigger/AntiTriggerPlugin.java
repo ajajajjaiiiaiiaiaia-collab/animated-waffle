@@ -179,6 +179,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
     private long primaryCooldownMs;
     private int primaryConfirmations;
     private long primaryWindowMs;
+    private long primaryGapMs;
     private final List<String> primaryCommands = new ArrayList<>();
     private double gateOff;
     private int gateSnaps;
@@ -452,7 +453,8 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         this.corrCooldownMs = Math.max(10, c.getInt("corroboration.cooldown-seconds", 60)) * 1000L;
         this.corrCommands = new ArrayList<>(c.getStringList("corroboration.commands"));
         this.primaryCooldownMs = Math.max(5, c.getInt("review.primary.cooldown-seconds", 15)) * 1000L;
-        this.primaryConfirmations = Math.max(1, c.getInt("review.primary.confirmations", 1));
+        this.primaryConfirmations = Math.max(c.getBoolean("review.primary.allow-single-confirmation", false) ? 1 : 2, c.getInt("review.primary.confirmations", 2));
+        this.primaryGapMs = Math.max(5, c.getInt("review.primary.confirm-gap-seconds", 15)) * 1000L;
         this.primaryWindowMs = Math.max(10, c.getInt("review.primary.confirm-window-seconds", 180)) * 1000L;
         this.primaryCommands.clear();
         this.primaryCommands.addAll(c.getStringList("review.primary.commands"));
@@ -2537,6 +2539,12 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
             }
         }
 
+        if (!force && state.aiHits > 0 && ms - state.lastAiHitMillis < this.primaryGapMs)
+        {
+            this.writeLog(name + " AI verdict not counted yet: confirmations must come from separate moments (" + this.primaryGapMs / 1000L + "s apart)");
+            return;
+        }
+
         state.aiHits++;
         state.lastAiHitMillis = ms;
         String summary = "&f" + name + " &8| &7AI &f" + verdict.verdict() + " &8| &7confidence &f" + Math.round(verdict.confidence() * 100.0) + "% &8| &7type &f" + verdict.cheatType() + " &8| &7" + reasons;
@@ -2545,7 +2553,7 @@ public final class AntiTriggerPlugin extends JavaPlugin implements Listener
         {
             this.alertStaff("&eAI suspects (" + state.aiHits + "/" + this.primaryConfirmations + "), checking again soon: " + summary);
             this.corroborate(Bukkit.getPlayerExact(name), state, "ai-suspect", true);
-            state.lastScreenMillis = ms - this.primaryCooldownMs + 4000L;
+            state.lastScreenMillis = ms - this.primaryCooldownMs + this.primaryGapMs;
             return;
         }
 

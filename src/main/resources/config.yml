@@ -207,7 +207,9 @@ review:
   on-failure: alert       # alert = no punishment if the AI cannot be reached, punish = run the action anyway
   primary:
     cooldown-seconds: 15        # minimum time between two screenings of the same player
-    confirmations: 1            # the AI must say "cheating" this many times (within confirm-window-seconds) before the ban
+    confirmations: 2            # the AI must say "cheating" this many times (within confirm-window-seconds) before the ban; the code never goes below 2 unless allow-single-confirmation is true
+    confirm-gap-seconds: 15     # two confirmations must be at least this far apart, so one burst of a single fight cannot ban
+    allow-single-confirmation: false
     confirm-window-seconds: 180
     commands:
       - "tempban %player% 1d %type%"
