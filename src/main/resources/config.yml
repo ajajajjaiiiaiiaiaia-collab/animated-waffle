@@ -1,0 +1,285 @@
+# ── MySQL ─────────────────────────────────────────────────────────────────────
+mysql:
+  host:     "127.0.0.1"
+  port:     3306
+  database: "stark_mod"
+  username: "CHANGE_ME"
+  password: "CHANGE_ME"
+
+# ── Unpunish API (هذا السيرفر يشغّل الـ API — سيرفر واحد فقط) ───────────────
+api:
+  enabled: true
+  port:    19484
+  token:   "CHANGE_ME"
+  # GET /status?player=Name  (Header: Authorization: Bearer TOKEN) -> معلومات الباند/البلاك ليست/الكيك
+
+discord:
+  link: "https://discord.gg/5B9vXFRuE5"
+
+durations:
+  - 30m
+  - 1h
+  - 3h
+  - 6h
+  - 12h
+  - 1d
+  - 3d
+  - 7d
+  - 14d
+  - 30d
+  - permanent
+
+default-reasons:
+  kick: "ɴᴏ ʀᴇᴀꜱᴏɴ"
+  ban:  "ɴᴏ ʀᴇᴀꜱᴏɴ"
+  mute: "ɴᴏ ʀᴇᴀꜱᴏɴ"
+
+rank-guard:
+  enabled: true
+
+broadcasts:
+  kick:
+    enabled: true
+    message: "<red>⚡ <white><player></white> has been kicked. <gray>Reason: <white><reason>"
+  ban:
+    enabled: true
+    message: "<red>🔨 <white><player></white> has been banned for <duration>. <gray>Reason: <white><reason>"
+  mute:
+    enabled: true
+    message: "<red>🔇 <white><player></white> has been muted for <duration>."
+
+mute:
+  notify: "<red>🔇 You are muted. <gray>Reason: <white><reason> <gray>| Expires: <white><expiry>"
+  no-reason: "ɴᴏ ʀᴇᴀꜱᴏɴ"
+  never: "Never"
+  # أوامر ممنوعة على الميوت (رسائل خاصة وغيرها). تقدر تضيف أوامر البلقنات الثانية
+  blocked-commands: [msg, tell, w, whisper, t, m, pm, dm, reply, r, me, emsg, etell, ewhisper, ereply, er, tm, teammsg]
+
+freeze:
+  notify-permanent: "<aqua>❄ You are frozen by <white><admin></white>."
+  notify-timed:     "<aqua>❄ You are frozen by <white><admin></white>. <gray>(<time> left)"
+
+screens:
+  ban:
+    no-reason: "ɴᴏ ʀᴇᴀꜱᴏɴ"
+    unknown:   "Unknown"
+    never:     "Never"
+    lines:
+      - ""
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ꜱᴛᴀʀᴋ ᴍᴄ</gradient>"
+      - ""
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98><bold>ʏᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ʙᴀɴɴᴇᴅ ꜰᴏʀ ᴛʜɪꜱ ꜱᴇʀᴠᴇʀ</gradient>"
+      - ""
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ᴘʟᴀʏᴇʀ: <white><n>"
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ʀᴇᴀꜱᴏɴ: <white><reason>"
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ʙᴀɴɴᴇᴅ ʙʏ: <white><admin>"
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ᴅᴀᴛᴇ: <white><date>"
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ᴇxᴘɪʀᴇꜱ: <white><expires>"
+      - ""
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ᴀᴘᴘᴇᴀʟ: <white><appeal>"
+      - ""
+  kick:
+    no-reason: "ɴᴏ ʀᴇᴀꜱᴏɴ"
+    lines:
+      - ""
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ꜱᴛᴀʀᴋ ᴍᴄ</gradient>"
+      - ""
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98><bold>ʏᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ᴋɪᴄᴋᴇᴅ ꜰᴏʀ ᴛʜɪꜱ ꜱᴇʀᴠᴇʀ</gradient>"
+      - ""
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ᴘʟᴀʏᴇʀ: <white><n>"
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ʀᴇᴀꜱᴏɴ: <white><reason>"
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ᴋɪᴄᴋᴇᴅ ʙʏ: <white><admin>"
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ᴅᴀᴛᴇ: <white><date>"
+      - ""
+      - "<gradient:#B7FF7A:#7CFC00:#98FB98>ᴀᴘᴘᴇᴀʟ: <white><discord>"
+      - ""
+
+sounds:
+  kick-admin:
+    enabled: true
+    sound:   "entity.player.levelup"
+    volume:  1.0
+    pitch:   1.2
+  ban-admin:
+    enabled: true
+    sound:   "entity.wither.spawn"
+    volume:  0.6
+    pitch:   1.5
+  mute-admin:
+    enabled: true
+    sound:   "block.note_block.bass"
+    volume:  1.0
+    pitch:   0.8
+  mute-target:
+    enabled: true
+    sound:   "block.note_block.bass"
+    volume:  1.0
+    pitch:   0.5
+  unmute-admin:
+    enabled: true
+    sound:   "entity.experience_orb.pickup"
+    volume:  1.0
+    pitch:   1.0
+  unmute-target:
+    enabled: true
+    sound:   "entity.experience_orb.pickup"
+    volume:  1.0
+    pitch:   1.2
+  unban-admin:
+    enabled: true
+    sound:   "entity.experience_orb.pickup"
+    volume:  1.0
+    pitch:   1.0
+  freeze-admin:
+    enabled: true
+    sound:   "block.glass.break"
+    volume:  1.0
+    pitch:   0.5
+  freeze-target:
+    enabled: true
+    sound:   "block.powder_snow.step"
+    volume:  1.0
+    pitch:   0.6
+  freeze-notify:
+    enabled: true
+    sound:   "block.powder_snow.step"
+    volume:  0.5
+    pitch:   1.2
+  unfreeze-admin:
+    enabled: true
+    sound:   "block.fire.extinguish"
+    volume:  1.0
+    pitch:   1.2
+  unfreeze-target:
+    enabled: true
+    sound:   "block.fire.extinguish"
+    volume:  1.0
+    pitch:   1.0
+
+messages:
+  reload-success:           "<green>✔ Configuration reloaded."
+  player-offline:           "<red>Player <white><player></white> is not online."
+  players-only:             "<red>This command can only be used by players."
+  invalid-duration:         "<red>Invalid duration. Example: 1h, 30m, 7d, permanent"
+  rank-guard-denied:        "<red>You cannot punish <white><player></white>, their rank is equal or higher than yours."
+  ban-success:              "<green>✔ <player> has been banned for <duration>."
+  mute-success:             "<green>✔ <player> has been muted for <duration>."
+  freeze-success-permanent: "<green>✔ <player> has been permanently frozen."
+  freeze-success-timed:     "<green>✔ <player> has been frozen for <duration>."
+  unfreeze-success:         "<green>✔ <player> has been unfrozen."
+  unfreeze-notify:          "<green>You have been unfrozen."
+  not-frozen:               "<red><player> is not frozen."
+  unban-success:            "<green>✔ <player> has been unbanned."
+  not-banned:               "<red><player> is not banned."
+  unmute-success:           "<green>✔ <player> has been unmuted."
+  not-muted:                "<red><player> is not muted."
+  unmute-notify:            "<green>You have been unmuted."
+  usage:
+    starkmod:  "<red>Usage: /starkmod reload"
+    kick:      "<red>Usage: /kick <player> [reason]"
+    tempban:   "<red>Usage: /tempban <player> <duration> [reason]"
+    tempmute:  "<red>Usage: /tempmute <player> <duration> [reason]"
+    freeze:    "<red>Usage: /freeze <player> [duration]"
+    unfreeze:  "<red>Usage: /unfreeze <player>"
+    unban:     "<red>Usage: /unban <player>"
+    unmute:    "<red>Usage: /unmute <player>"
+    allts:     "<red>Usage: /allts <player>"
+
+# ── WARN SYSTEM ──────────────────────────────────────────────────────────────
+
+default-reasons-warn:
+  warn: "ɴᴏ ʀᴇᴀꜱᴏɴ"
+
+warn:
+  notify: "<yellow>⚠ You have been warned by <white><admin></white>. <gray>Reason: <white><reason> <gray>| Total: <yellow><count>"
+  list-header: "<gradient:#FFD700:#FFA500>⚠ Warnings for <white><player></white> <gray>(<count> total)"
+  list-empty:  "<gray>  No warnings on record."
+  list-line:   "<gray>  <yellow>#<id> <white><reason> <gray>| By: <white><by> <gray>| <white><date>"
+
+broadcasts-warn:
+  warn:
+    enabled: true
+    message: "<yellow>⚠ <white><player></white> has been warned. <gray>Reason: <white><reason> <gray>(<count> total)"
+
+sounds-warn:
+  warn-admin:
+    enabled: true
+    sound:   "block.note_block.pling"
+    volume:  1.0
+    pitch:   1.5
+  warn-target:
+    enabled: true
+    sound:   "entity.experience_orb.pickup"
+    volume:  1.0
+    pitch:   0.5
+
+messages-warn:
+  warn-success:           "<green>✔ <player> has been warned. <gray>(<count> total)"
+  warn-not-found:         "<red>No warning #<id> found for <player>."
+  unwarn-success:         "<green>✔ Warning #<id> removed from <player>."
+  unwarn-notify:          "<green>⚠ Warning #<id> has been removed from your record."
+  no-warnings:            "<red><player> has no warnings."
+  clearwarnings-success:  "<green>✔ Cleared <count> warning(s) from <player>."
+  clearwarnings-notify:   "<green>✔ All your warnings have been cleared."
+  usage:
+    warn:          "<red>Usage: /warn <player> [reason]"
+    unwarn:        "<red>Usage: /unwarn <player> <id>"
+    warnings:      "<red>Usage: /warnings [player]"
+    clearwarnings: "<red>Usage: /clearwarnings <player>"
+
+# ── أنيميشن الباند (/tempban) ───────────────────────────────────────────────
+ban-animation:
+  enabled: true
+  beam-ticks: 30
+  fall-ticks: 14
+  title-ticks: 60
+  hammer-height: 9.0
+  hammer-scale: 4.0
+  visible-to-all: true
+  title: "<red><bold>BANNED"
+  subtitle: "<gray>The hammer has spoken."
+  actionbar: "<dark_gray>by <red><admin>"
+
+# ===== طرد الشبكة =====
+# المبند / البلاك ليست يتطرد من الشبكة كاملة (من البروكسي) بدل ما يرجع للهوب.
+network:
+  kick-from-proxy: true      # يرسل أمر الطرد للبروكسي (Velocity) عبر قناة BungeeCord
+  fallback-kick-ticks: 10    # لو البروكسي ما نفذ، يتطرد من السيرفر بعد هالمدة
+
+# ===== لوحة الويب (داخل البلقن) — الدخول عبر ديسكورد فقط =====
+# شغّلها على سيرفر واحد فقط. الأفضل تحطها خلف Cloudflare/Nginx بـ HTTPS (وقتها secure-cookie: true).
+#
+# طريقة الإعداد:
+#  1) https://discord.com/developers/applications  -> New Application (أو استخدم تطبيق البوت نفسه)
+#  2) OAuth2 -> انسخ Client ID و Client Secret
+#  3) OAuth2 -> Redirects -> أضف نفس redirect-uri بالضبط، مثال: https://panel.stark-mc.xyz/auth/callback
+#  4) guild-id = آيدي سيرفر الديسكورد (Developer Mode -> كليك يمين على السيرفر -> Copy ID)
+# يدخل فقط: صاحب السيرفر أو أي أحد معه صلاحية Administrator في ذاك السيرفر.
+web:
+  enabled: false
+  port: 8085
+  bind: "0.0.0.0"
+  session-hours: 12
+  trust-proxy: false         # true لو وراء بروكسي (يقرأ X-Forwarded-For)
+  secure-cookie: false       # true لو الموقع على HTTPS
+  proxy-players: true        # يجيب أونلاين الشبكة كاملة من Velocity (يحتاج لاعب واحد على الأقل على سيرفر اللوحة)
+  protected-players: []      # أسماء ما تنعاقب من الموقع، مثال: [ahemd098]
+
+  discord:
+    client-id: ""
+    client-secret: ""
+    redirect-uri: "http://IP:8085/auth/callback"
+    guild-id: ""
+    recheck-minutes: 10      # كل كم دقيقة نتأكد إن الأدمن لسا Administrator (لو انسحبت منه الصلاحية تنقطع جلسته)
+
+  # صلاحيات كل أدمن يدخل افتراضياً: view, ban, unban, blacklist, unblacklist, kick, mute, unmute, warn, unwarn, logs, control  (أو all)
+  # control = قسم "التحكم" (فك الكل / تصفير الإنذارات). لو تبغاه لك بس، اكتب الصلاحيات بدونه بدل all.
+  default-permissions: [all]
+
+  # تخصيص صلاحيات أدمن معين (آيدي ديسكورد بين علامتي تنصيص!). مثال: مشرف يشوف ويكيك بس
+  overrides: {}
+  #  "123456789012345678":
+  #    permissions: [view, kick]
+
+  # آيديات ممنوعة من الدخول حتى لو أدمن (بين علامتي تنصيص)
+  blocked-ids: []

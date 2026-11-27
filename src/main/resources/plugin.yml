@@ -1,0 +1,135 @@
+name: StarkModeration
+version: '${project.version}'
+main: com.starkmc.moderation.ModerationPlugin
+api-version: '1.21'
+softdepend: [LuckPerms]
+authors: [StarkMC]
+description: StarkMC Moderation System
+
+commands:
+  kick:
+    description: Kick a player
+    permission: starkmod.kick
+    usage: /kick <player> [reason]
+    aliases: [skick]
+  tempban:
+    description: Temporarily ban a player
+    permission: starkmod.ban
+    usage: /tempban <player> <duration> [reason]
+    aliases: [stempban, sban]
+  unban:
+    description: Unban a player
+    permission: starkmod.unban
+    usage: /unban <player>
+    aliases: [sunban]
+  blacklist:
+    description: Permanently blacklist a player (separate from bans)
+    permission: starkmod.blacklist
+    usage: /blacklist <add|remove|list> [player] [reason]
+    aliases: [sblacklist]
+  unbanall:
+    description: Unban ALL banned players
+    permission: starkmod.unbanall
+    usage: /unbanall [confirm]
+    aliases: [sunbanall]
+  tempmute:
+    description: Temporarily mute a player
+    permission: starkmod.mute
+    usage: /tempmute <player> <duration> [reason]
+    aliases: [stempmute, smute]
+  unmute:
+    description: Unmute a player
+    permission: starkmod.mute
+    usage: /unmute <player>
+    aliases: [sunmute]
+  freeze:
+    description: Freeze a player
+    permission: starkmod.freeze
+    usage: /freeze <player> [duration]
+    aliases: [sfreeze]
+  unfreeze:
+    description: Unfreeze a player
+    permission: starkmod.freeze
+    usage: /unfreeze <player>
+    aliases: [sunfreeze]
+  warn:
+    description: Warn a player
+    permission: starkmod.warn
+    usage: /warn <player> [reason]
+    aliases: [swarn]
+  unwarn:
+    description: Remove a specific warning by ID
+    permission: starkmod.warn
+    usage: /unwarn <player> <id>
+    aliases: [sunwarn]
+  warnings:
+    description: View warnings for a player
+    permission: starkmod.warn.view
+    usage: /warnings [player]
+    aliases: [swarnings]
+  clearwarnings:
+    description: Clear all warnings for a player
+    permission: starkmod.warn
+    usage: /clearwarnings <player>
+    aliases: [sclearwarnings]
+  allts:
+    description: View a player's punishment history
+    permission: starkmod.allts
+    usage: /allts <player>
+    aliases: [sallts]
+  vanish:
+    description: Toggle vanish mode
+    permission: starkmod.vanish
+    usage: /vanish [on|off]
+    aliases: [v, svanish]
+  starkmod:
+    description: Plugin management
+    permission: starkmod.admin
+    usage: /starkmod reload
+
+permissions:
+  starkmod.admin:
+    description: Reload the plugin
+    default: op
+  starkmod.kick:
+    description: Kick players
+    default: op
+  starkmod.ban:
+    description: Ban players
+    default: op
+  starkmod.unban:
+    description: Unban players
+    default: op
+  starkmod.blacklist:
+    description: Blacklist players (/blacklist add, list)
+    default: op
+  starkmod.blacklist.remove:
+    description: Remove players from the blacklist (/blacklist remove)
+    default: op
+  starkmod.unbanall:
+    description: Unban ALL players at once (/unbanall)
+    default: op
+  starkmod.mute:
+    description: Mute/unmute players
+    default: op
+  starkmod.freeze:
+    description: Freeze/unfreeze players
+    default: op
+  starkmod.warn:
+    description: Warn / unwarn / clear warnings
+    default: op
+  starkmod.warn.view:
+    description: View player warnings
+    default: op
+  starkmod.allts:
+    description: View player punishment history GUI
+    default: op
+  starkmod.rank-guard.bypass:
+    description: Cannot be punished by lower-rank admins
+    default: false
+  starkmod.vanish:
+    description: Use /vanish
+    default: op
+  starkmod.vanish.see:
+    description: See vanished staff
+    default: false
