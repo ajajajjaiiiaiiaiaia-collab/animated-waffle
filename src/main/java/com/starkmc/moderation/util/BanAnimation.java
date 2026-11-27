@@ -68,7 +68,7 @@ public final class BanAnimation {
       int titleTicks = Math.max(20, cfg.getInt("ban-animation.title-ticks", 60));
       double height = Math.max(4.0, cfg.getDouble("ban-animation.hammer-height", 9.0));
       float hammerScale = (float) cfg.getDouble("ban-animation.hammer-scale", 4.0);
-      boolean everyone = cfg.getBoolean("ban-animation.visible-to-all", true);
+      boolean everyone = cfg.getBoolean("ban-animation.visible-to-all", false);
       int impactAt = beamTicks + fallTicks;
       World world = target.getWorld();
 
@@ -162,8 +162,8 @@ public final class BanAnimation {
                   new Vector3f(-0.15f, 0.0f, -0.15f), new AxisAngle4f(), new Vector3f(0.3f, h, 0.3f), new AxisAngle4f()
                ));
                if (tick % 2 == 0) {
-                  world.spawnParticle(Particle.END_ROD, base.clone().add(0, 1.0, 0), 4, 0.35, 1.0, 0.35, 0.02);
-                  world.spawnParticle(Particle.ELECTRIC_SPARK, base.clone().add(0, 0.2, 0), 3, 0.4, 0.1, 0.4, 0.1);
+                  target.spawnParticle(Particle.END_ROD, base.clone().add(0, 1.0, 0), 4, 0.35, 1.0, 0.35, 0.02);
+                  target.spawnParticle(Particle.ELECTRIC_SPARK, base.clone().add(0, 0.2, 0), 3, 0.4, 0.1, 0.4, 0.1);
                }
             }
 
@@ -181,14 +181,14 @@ public final class BanAnimation {
                hammer.teleport(base.clone().add(0, 1.6, 0));
                target.playSound(base, "item.mace.smash_ground_heavy", SoundCategory.MASTER, 1.5f, 0.8f);
                target.playSound(base, "entity.generic.explode", SoundCategory.MASTER, 1.0f, 1.0f);
-               world.spawnParticle(Particle.EXPLOSION, eyeLoc, 1, 0, 0, 0, 0);
-               world.spawnParticle(
+               target.spawnParticle(Particle.EXPLOSION, eyeLoc, 1, 0, 0, 0, 0);
+               target.spawnParticle(
                   Particle.BLOCK, eyeLoc, 60, 0.5, 0.6, 0.5, 0.25, Material.RED_CONCRETE.createBlockData()
                );
-               world.spawnParticle(
+               target.spawnParticle(
                   Particle.BLOCK, eyeLoc, 30, 0.5, 0.6, 0.5, 0.25, Material.LIGHT_BLUE_CONCRETE.createBlockData()
                );
-               world.spawnParticle(Particle.CRIT, eyeLoc, 40, 0.5, 0.6, 0.5, 0.4);
+               target.spawnParticle(Particle.CRIT, eyeLoc, 40, 0.5, 0.6, 0.5, 0.4);
 
                Component main = MM.deserialize(cfg.getString("ban-animation.title", "<red><bold>BANNED"));
                Component sub = MM.deserialize(cfg.getString("ban-animation.subtitle", "<gray>The hammer has spoken."));

@@ -235,7 +235,7 @@ ban-animation:
   title-ticks: 60
   hammer-height: 9.0
   hammer-scale: 4.0
-  visible-to-all: true
+  visible-to-all: false
   title: "<red><bold>BANNED"
   subtitle: "<gray>The hammer has spoken."
   actionbar: "<dark_gray>by <red><admin>"
